@@ -16,6 +16,9 @@ export enum NotificationType {
   BookingCancelled = 'booking_cancelled',
   BookingReminder = 'booking_reminder',
   System = 'system',
+  Setup = 'setup',
+  Catering = 'catering',
+  Maintenance = 'maintenance',
 }
 
 @Entity({ name: 'notifications' })

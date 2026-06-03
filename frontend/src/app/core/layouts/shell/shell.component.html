@@ -1,20 +1,35 @@
 <div class="shell">
   <aside class="sidebar">
-    <div class="brand">{{ brand() }}</div>
-    <nav>
+
+    <div class="brand">
+      <lucide-icon [img]="Building2" class="brand-icon" />
+      <span class="brand-name">{{ brand() }}</span>
+    </div>
+
+    <nav class="nav">
       @for (item of navItems(); track item.path) {
-        <a [routerLink]="item.path" routerLinkActive="active">{{ item.label }}</a>
+        <a [routerLink]="item.path" routerLinkActive="active" class="nav-item">
+          <lucide-icon [img]="item.icon" class="nav-icon" />
+          <span class="nav-label">{{ item.label }}</span>
+        </a>
       }
     </nav>
-    @if (userLabel()) {
-      <div class="user">
-        <div class="user-name">{{ userLabel() }}</div>
-        @if (roleLabel()) {
-          <div class="user-role">{{ roleLabel() }}</div>
-        }
+
+    <div class="sidebar-footer">
+      <div class="user-card">
+        <div class="avatar">{{ userInitials() }}</div>
+        <div class="user-info">
+          <div class="user-name">{{ userLabel() }}</div>
+          @if (roleLabel()) {
+            <div class="user-role">{{ roleLabel() }}</div>
+          }
+        </div>
       </div>
-    }
-    <button type="button" class="logout" (click)="logout()">Sign out</button>
+      <button type="button" class="logout-btn" title="Sign out" (click)="logout()">
+        <lucide-icon [img]="LogOut" class="logout-icon" />
+      </button>
+    </div>
+
   </aside>
 
   <main class="content">

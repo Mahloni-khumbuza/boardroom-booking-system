@@ -3,7 +3,10 @@ export type NotificationType =
   | 'booking_created'
   | 'booking_cancelled'
   | 'booking_reminder'
-  | 'system';
+  | 'system'
+  | 'setup'
+  | 'catering'
+  | 'maintenance';
 
 export interface AppNotification {
   id: string;

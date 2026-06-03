@@ -1,6 +1,8 @@
 import {
   ConflictException,
   Injectable,
+  InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -11,21 +13,25 @@ import { UpdatePermissionDto } from '../dto/update-permission.dto';
 
 @Injectable()
 export class PermissionsService {
+  private readonly logger = new Logger(PermissionsService.name);
+
   constructor(
     @InjectRepository(Permission)
     private readonly permissionsRepository: Repository<Permission>,
   ) {}
 
-  findAll(): Promise<Permission[]> {
-    return this.permissionsRepository.find({ order: { name: 'ASC' } });
+  async findAll(): Promise<Permission[]> {
+    try {
+      return await this.permissionsRepository.find({ order: { name: 'ASC' } });
+    } catch (err) { this.rethrow(err, 'findAll permissions'); }
   }
 
   async findOne(id: string): Promise<Permission> {
-    const permission = await this.permissionsRepository.findOne({ where: { id } });
-    if (!permission) {
-      throw new NotFoundException(`Permission ${id} not found`);
-    }
-    return permission;
+    try {
+      const permission = await this.permissionsRepository.findOne({ where: { id } });
+      if (!permission) throw new NotFoundException(`Permission ${id} not found`);
+      return permission;
+    } catch (err) { this.rethrow(err, 'findOne permission'); }
   }
 
   async create(dto: CreatePermissionDto): Promise<Permission> {
@@ -52,29 +58,28 @@ export class PermissionsService {
   }
 
   async update(id: string, dto: UpdatePermissionDto): Promise<Permission> {
-    const permission = await this.findOne(id);
-
-    if (dto.name !== undefined && dto.name !== permission.name) {
-      const clash = await this.permissionsRepository.findOne({
-        where: { name: dto.name },
-      });
-      if (clash) {
-        throw new ConflictException(`Permission "${dto.name}" already exists`);
+    try {
+      const permission = await this.findOne(id);
+      if (dto.name !== undefined && dto.name !== permission.name) {
+        const clash = await this.permissionsRepository.findOne({ where: { name: dto.name } });
+        if (clash) throw new ConflictException(`Permission "${dto.name}" already exists`);
+        permission.name = dto.name;
       }
-      permission.name = dto.name;
-    }
-
-    if (dto.description !== undefined) {
-      permission.description = dto.description;
-    }
-
-    return this.permissionsRepository.save(permission);
+      if (dto.description !== undefined) permission.description = dto.description;
+      return await this.permissionsRepository.save(permission);
+    } catch (err) { this.rethrow(err, 'update permission'); }
   }
 
   async remove(id: string): Promise<void> {
-    const result = await this.permissionsRepository.delete(id);
-    if (result.affected === 0) {
-      throw new NotFoundException(`Permission ${id} not found`);
-    }
+    try {
+      const result = await this.permissionsRepository.delete(id);
+      if (result.affected === 0) throw new NotFoundException(`Permission ${id} not found`);
+    } catch (err) { this.rethrow(err, 'remove permission'); }
+  }
+
+  private rethrow(err: unknown, context: string): never {
+    if (err instanceof ConflictException || err instanceof NotFoundException) throw err;
+    this.logger.error(`Unexpected error in ${context}`, err instanceof Error ? err.stack : String(err));
+    throw new InternalServerErrorException('An unexpected error occurred');
   }
 }

@@ -10,6 +10,10 @@ export interface AuditLogRecordInput {
   entityId?: string | null;
   actorId?: string | null;
   metadata?: Record<string, unknown> | null;
+  before?: Record<string, unknown> | null;
+  after?: Record<string, unknown> | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
 }
 
 @Injectable()
@@ -29,6 +33,10 @@ export class AuditLogsService {
         entityId: input.entityId ?? null,
         actorId: input.actorId ?? null,
         metadata: input.metadata ?? null,
+        before: input.before ?? null,
+        after: input.after ?? null,
+        ipAddress: input.ipAddress ?? null,
+        userAgent: input.userAgent ?? null,
       });
       return await this.repo.save(entry);
     } catch (err) {

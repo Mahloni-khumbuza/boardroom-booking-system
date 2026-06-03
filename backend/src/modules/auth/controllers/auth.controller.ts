@@ -1,4 +1,5 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import {
   ApiOkResponse,
   ApiOperation,
@@ -19,7 +20,11 @@ export class AuthController {
   @ApiOperation({ summary: 'Authenticate a user with email and password.' })
   @ApiOkResponse({ type: LoginResponseDto })
   @ApiUnauthorizedResponse({ description: 'Invalid email or password.' })
-  login(@Body() dto: LoginDto): Promise<LoginResponseDto> {
-    return this.authService.login(dto);
+  login(@Body() dto: LoginDto, @Req() req: Request): Promise<LoginResponseDto> {
+    const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim()
+      ?? req.socket.remoteAddress
+      ?? null;
+    const ua = req.headers['user-agent'] ?? null;
+    return this.authService.login(dto, ip, ua);
   }
 }

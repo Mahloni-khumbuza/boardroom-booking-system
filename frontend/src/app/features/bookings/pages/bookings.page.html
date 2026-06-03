@@ -1,65 +1,68 @@
 <section class="page">
-  <header class="head">
-    <div>
+
+  <!-- Page header -->
+  <header class="page-head">
+    <div class="page-head-text">
       <h1>Bookings</h1>
       <p class="lede">
         @if (isAdmin()) {
-          {{ mineOnly() ? 'Your bookings' : 'All bookings across the organization.' }}
+          {{ mineOnly() ? 'Your bookings.' : 'All bookings across the organisation.' }}
         } @else {
-          Your bookings. Pending bookings need an admin approval before they're confirmed.
+          Your bookings. Pending bookings await admin approval before they are confirmed.
         }
       </p>
     </div>
-    <div class="head-actions">
-      <button type="button" class="btn primary" (click)="openCreate()">+ New booking</button>
+    <div class="page-head-actions">
+      @if (isAdmin()) {
+        <label class="mine-toggle">
+          <input type="checkbox" [checked]="mineOnly()" (change)="toggleMine()" />
+          <span>My bookings only</span>
+        </label>
+      }
+      <button class="btn-new" (click)="openCreate()">+ New Booking</button>
     </div>
   </header>
 
-  <div class="filters">
-    <label class="field">
-      <span>Status</span>
-      <select [value]="statusFilter()" (change)="setStatusFilter($any($event.target).value)">
-        <option value="">All</option>
-        <option value="pending">Pending</option>
-        <option value="confirmed">Confirmed</option>
-        <option value="cancelled">Cancelled</option>
-        <option value="completed">Completed</option>
-      </select>
-    </label>
-    <label class="field">
-      <span>Boardroom</span>
-      <select [value]="boardroomFilter()" (change)="setBoardroomFilter($any($event.target).value)">
-        <option value="">All</option>
-        @for (r of boardrooms(); track r.id) {
-          <option [value]="r.id">{{ r.name }}</option>
-        }
-      </select>
-    </label>
-    @if (isAdmin()) {
-      <label class="field check">
-        <input type="checkbox" [checked]="mineOnly()" (change)="toggleMine()" />
-        <span>Only mine</span>
-      </label>
-    }
-  </div>
-
+  <!-- Error banner -->
   @if (error(); as err) {
-    <div class="banner error">{{ err }}</div>
+    <div class="alert-error">{{ err }}</div>
   }
 
+  <!-- Booking form -->
   @if (showCreate()) {
-    <div class="create-card">
-      <h2>{{ editingId() ? 'Edit booking' : 'New booking' }}</h2>
+    <div class="form-card">
+      <div class="form-card-header">
+        <div>
+          <h2 class="form-card-title">{{ editingId() ? 'Edit Booking' : 'New Booking' }}</h2>
+          <p class="form-card-sub">Fill in the details below. Fields marked * are required.</p>
+        </div>
+        <button class="btn-close" type="button" (click)="closeForm()" title="Close">&#x2715;</button>
+      </div>
+
       <form [formGroup]="form" (ngSubmit)="submitForm()" novalidate>
-        <label class="field">
-          <span>Title</span>
-          <input type="text" formControlName="title" maxlength="200" />
-          @if (form.controls.title.touched && form.controls.title.invalid) {
-            <small class="error">Title is required (2–200 characters).</small>
-          }
-        </label>
-        <label class="field">
-          <span>Boardroom</span>
+
+        <!-- Row 1: Title + Meeting type -->
+        <div class="f-row">
+          <label class="f-field f-grow">
+            <span class="f-label">Title *</span>
+            <input type="text" formControlName="title" maxlength="200" placeholder="e.g. Q3 Planning Session" />
+            @if (form.controls.title.touched && form.controls.title.invalid) {
+              <span class="f-error">Title is required (2–200 characters).</span>
+            }
+          </label>
+          <label class="f-field f-medium">
+            <span class="f-label">Meeting type</span>
+            <select formControlName="meetingType">
+              @for (t of meetingTypes; track t.value) {
+                <option [value]="t.value">{{ t.label }}</option>
+              }
+            </select>
+          </label>
+        </div>
+
+        <!-- Row 2: Boardroom -->
+        <label class="f-field">
+          <span class="f-label">Boardroom *</span>
           <select formControlName="boardroomId">
             <option value="" disabled>Select a boardroom…</option>
             @for (r of boardrooms(); track r.id) {
@@ -67,147 +70,287 @@
             }
           </select>
           @if (form.controls.boardroomId.touched && form.controls.boardroomId.invalid) {
-            <small class="error">Pick a boardroom.</small>
+            <span class="f-error">Please select a boardroom.</span>
           }
           @if (editingId()) {
-            <small class="muted">Boardroom can't be changed on an existing booking.</small>
-          }
-        </label>
-        <div class="row">
-          <label class="field">
-            <span>Start</span>
-            <input type="datetime-local" formControlName="startTime" />
-          </label>
-          <label class="field">
-            <span>End</span>
-            <input type="datetime-local" formControlName="endTime" />
-          </label>
-        </div>
-        <label class="field">
-          <span>
-            Attendees
-            @if (selectedBoardroom(); as r) {
-              <small class="muted">(max {{ r.capacity }})</small>
-            }
-          </span>
-          <input type="number" formControlName="attendeeCount" min="1" />
-          @if (form.controls.attendeeCount.touched && form.controls.attendeeCount.invalid) {
-            <small class="error">At least 1 attendee.</small>
+            <span class="f-hint">Boardroom cannot be changed on an existing booking.</span>
           }
         </label>
 
-        @if (selectedBoardroom()) {
-          <div class="field">
-            <span>Requested amenities (optional)</span>
-            @if (availableAmenities().length === 0) {
-              <small class="muted">This boardroom has no amenities.</small>
-            } @else {
-              <div class="chip-list">
-                @for (a of availableAmenities(); track a.id) {
-                  <button
-                    type="button"
-                    class="chip"
-                    [class.selected]="isAmenitySelected(a.id)"
-                    (click)="toggleAmenity(a.id)"
-                  >
-                    {{ a.name }}
-                  </button>
-                }
-              </div>
+        <!-- Row 3: Start / End / Attendees -->
+        <div class="f-row">
+          <label class="f-field f-grow">
+            <span class="f-label">Start *</span>
+            <input type="datetime-local" formControlName="startTime" />
+          </label>
+          <label class="f-field f-grow">
+            <span class="f-label">End *</span>
+            <input type="datetime-local" formControlName="endTime" />
+          </label>
+          <label class="f-field f-small">
+            <span class="f-label">
+              Attendees *
+              @if (selectedBoardroom(); as r) {
+                <span class="f-hint-inline">(max {{ r.capacity }})</span>
+              }
+            </span>
+            <input type="number" formControlName="attendeeCount" min="1" />
+            @if (form.controls.attendeeCount.touched && form.controls.attendeeCount.invalid) {
+              <span class="f-error">At least 1 attendee required.</span>
             }
+          </label>
+        </div>
+
+        <!-- Amenities -->
+        @if (selectedBoardroom() && availableAmenities().length > 0) {
+          <div class="f-field">
+            <span class="f-label">Requested amenities <span class="f-optional">(optional)</span></span>
+            <div class="chip-list">
+              @for (a of availableAmenities(); track a.id) {
+                <button type="button" class="chip" [class.selected]="isAmenitySelected(a.id)" (click)="toggleAmenity(a.id)">
+                  {{ a.name }}
+                </button>
+              }
+            </div>
           </div>
         }
 
-        <label class="field">
-          <span>Description (optional)</span>
-          <textarea formControlName="description" rows="2" maxlength="2000"></textarea>
+        <!-- Description -->
+        <label class="f-field">
+          <span class="f-label">Description <span class="f-optional">(optional)</span></span>
+          <textarea formControlName="description" rows="2" maxlength="2000" placeholder="Agenda, purpose or additional notes…"></textarea>
         </label>
-        <div class="form-actions">
-          <button type="button" class="btn ghost" (click)="closeForm()">Cancel</button>
-          <button type="submit" class="btn primary" [disabled]="saving()">
-            {{ saving() ? 'Saving…' : editingId() ? 'Save changes' : 'Create booking' }}
+
+        <!-- Catering / Setup toggles -->
+        <div class="f-toggles">
+          <div class="f-toggle-group">
+            <label class="f-toggle">
+              <input type="checkbox" formControlName="requiresCatering" />
+              <div class="f-toggle-text">
+                <strong>Catering required</strong>
+                <span>Notify facilities to arrange food and beverages</span>
+              </div>
+            </label>
+            @if (form.controls.requiresCatering.value) {
+              <label class="f-field f-indent">
+                <span class="f-label">Catering notes</span>
+                <textarea formControlName="cateringNotes" rows="2" maxlength="2000"
+                  placeholder="e.g. 10 sandwiches, coffee for 10 people…"></textarea>
+              </label>
+            }
+          </div>
+
+          <div class="f-toggle-group">
+            <label class="f-toggle">
+              <input type="checkbox" formControlName="requiresSetup" />
+              <div class="f-toggle-text">
+                <strong>Room setup required</strong>
+                <span>Notify facilities to configure the room layout</span>
+              </div>
+            </label>
+            @if (form.controls.requiresSetup.value) {
+              <label class="f-field f-indent">
+                <span class="f-label">Setup notes</span>
+                <textarea formControlName="setupNotes" rows="2" maxlength="2000"
+                  placeholder="e.g. U-shape seating, projector screen, whiteboard…"></textarea>
+              </label>
+            }
+          </div>
+        </div>
+
+        <!-- Form actions -->
+        <div class="f-actions">
+          <button type="button" class="btn-secondary" (click)="closeForm()">Cancel</button>
+          <button type="submit" class="btn-primary" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : (editingId() ? 'Save changes' : 'Create booking') }}
           </button>
         </div>
       </form>
     </div>
   }
 
-  <div class="list">
-    @if (loading()) {
-      <div class="empty">Loading…</div>
-    } @else if (filteredBookings().length === 0) {
-      <div class="empty">No bookings match these filters.</div>
-    } @else {
-      <table>
-        <thead>
-          <tr>
-            <th>Title</th>
-            <th>Boardroom</th>
-            <th>When</th>
-            <th>Attendees</th>
-            <th>Amenities</th>
-            <th>Booked by</th>
-            <th>Status</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (b of filteredBookings(); track b.id) {
-            <tr>
-              <td>
-                <strong>{{ b.title }}</strong>
-                @if (b.description) {
-                  <div class="muted small">{{ b.description }}</div>
-                }
-              </td>
-              <td class="muted">{{ b.boardroom.name }}</td>
-              <td class="small">
-                <div>{{ b.startTime | date: 'MMM d, h:mm a' }}</div>
-                <div class="muted">→ {{ b.endTime | date: 'MMM d, h:mm a' }}</div>
-              </td>
-              <td class="small">{{ b.attendeeCount }} / {{ b.boardroom.capacity }}</td>
-              <td class="small muted">
-                @if (b.requestedAmenities.length === 0) {
-                  —
-                } @else {
-                  @for (a of b.requestedAmenities; track a.id; let last = $last) {
-                    {{ a.name }}{{ last ? '' : ', ' }}
-                  }
-                }
-              </td>
-              <td class="muted small">{{ bookerLabel(b) }}</td>
-              <td>
-                <span class="status status-{{ b.status }}">{{ statusLabel(b.status) }}</span>
-              </td>
-              <td class="actions">
-                @if (canApprove(b)) {
-                  <button
-                    type="button"
-                    class="btn small"
-                    [disabled]="busyId() === b.id"
-                    (click)="approve(b)"
-                  >
-                    {{ busyId() === b.id ? '…' : 'Approve' }}
-                  </button>
-                }
-                @if (canEdit(b)) {
-                  <button type="button" class="link" (click)="openEdit(b)">Edit</button>
-                }
-                @if (canCancel(b)) {
-                  <button
-                    type="button"
-                    class="link danger"
-                    [disabled]="busyId() === b.id"
-                    (click)="cancel(b)"
-                  >
-                    Cancel
-                  </button>
-                }
-              </td>
-            </tr>
+  <!-- Bookings tabs -->
+  @if (loading()) {
+    <app-spinner label="Loading bookings…" />
+  } @else {
+    <mat-tab-group animationDuration="150ms" class="bookings-tabs">
+
+      <!-- Upcoming -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          Upcoming
+          @if (upcomingBookings().length) {
+            <span class="tab-badge">{{ upcomingBookings().length }}</span>
           }
-        </tbody>
-      </table>
-    }
-  </div>
+        </ng-template>
+        <ng-template matTabContent>
+          <div class="tab-body">
+            @if (upcomingBookings().length === 0) {
+              <div class="empty-state">
+                <p class="empty-title">No upcoming bookings</p>
+                <p class="empty-sub">Click <strong>+ New Booking</strong> to reserve a room.</p>
+              </div>
+            } @else {
+              <ng-container *ngTemplateOutlet="bookingsTable; context: { list: upcomingBookings() }" />
+            }
+          </div>
+        </ng-template>
+      </mat-tab>
+
+      <!-- Pending -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          Pending Approval
+          @if (pendingBookings().length) {
+            <span class="tab-badge tab-badge-amber">{{ pendingBookings().length }}</span>
+          }
+        </ng-template>
+        <ng-template matTabContent>
+          <div class="tab-body">
+            @if (pendingBookings().length === 0) {
+              <div class="empty-state">
+                <p class="empty-title">No pending approvals</p>
+              </div>
+            } @else {
+              <ng-container *ngTemplateOutlet="bookingsTable; context: { list: pendingBookings() }" />
+            }
+          </div>
+        </ng-template>
+      </mat-tab>
+
+      <!-- Past -->
+      <mat-tab label="Past">
+        <ng-template matTabContent>
+          <div class="tab-body">
+            @if (pastBookings().length === 0) {
+              <div class="empty-state">
+                <p class="empty-title">No past bookings</p>
+              </div>
+            } @else {
+              <table class="b-table">
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Boardroom</th>
+                    <th>Date &amp; Time</th>
+                    <th>Booked by</th>
+                    <th>Status</th>
+                    @if (isAdmin()) { <th class="th-actions"></th> }
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (b of pastBookings(); track b.id) {
+                    <tr>
+                      <td class="td-title">
+                        <strong>{{ b.title }}</strong>
+                        @if (b.description) {
+                          <div class="td-sub">{{ b.description }}</div>
+                        }
+                      </td>
+                      <td class="td-muted">{{ b.boardroom.name }}</td>
+                      <td class="td-time">
+                        {{ b.startTime | date:'dd MMM yyyy' }}<br/>
+                        <span class="td-sub">{{ b.startTime | date:'HH:mm' }} – {{ b.endTime | date:'HH:mm' }}</span>
+                      </td>
+                      <td class="td-muted">{{ bookerLabel(b) }}</td>
+                      <td>
+                        @if (b.status === 'completed') {
+                          <span class="badge badge-completed">Completed</span>
+                        } @else {
+                          <span class="badge badge-awaiting">Awaiting completion</span>
+                        }
+                      </td>
+                      @if (isAdmin()) {
+                        <td class="td-actions">
+                          @if (canComplete(b)) {
+                            <button class="btn-action btn-action-primary" [disabled]="busyId() === b.id" (click)="complete(b)">
+                              {{ busyId() === b.id ? 'Saving…' : 'Mark Complete' }}
+                            </button>
+                          } @else if (b.status === 'completed') {
+                            <span class="done-check">&#10003; Done</span>
+                          }
+                        </td>
+                      }
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+          </div>
+        </ng-template>
+      </mat-tab>
+
+      <!-- Cancelled -->
+      <mat-tab label="Cancelled">
+        <ng-template matTabContent>
+          <div class="tab-body">
+            @if (cancelledBookings().length === 0) {
+              <div class="empty-state">
+                <p class="empty-title">No cancelled bookings</p>
+              </div>
+            } @else {
+              <ng-container *ngTemplateOutlet="bookingsTable; context: { list: cancelledBookings() }" />
+            }
+          </div>
+        </ng-template>
+      </mat-tab>
+
+    </mat-tab-group>
+  }
 </section>
+
+<!-- Shared bookings table -->
+<ng-template #bookingsTable let-list="list">
+  <table class="b-table">
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Boardroom</th>
+        <th>Date &amp; Time</th>
+        <th>Attendees</th>
+        <th>Booked by</th>
+        <th>Status</th>
+        <th class="th-actions"></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (b of list; track b.id) {
+        <tr>
+          <td class="td-title">
+            <strong>{{ b.title }}</strong>
+            @if (b.description) {
+              <div class="td-sub">{{ b.description }}</div>
+            }
+          </td>
+          <td class="td-muted">{{ b.boardroom.name }}</td>
+          <td class="td-time">
+            {{ b.startTime | date:'dd MMM yyyy' }}<br/>
+            <span class="td-sub">{{ b.startTime | date:'HH:mm' }} – {{ b.endTime | date:'HH:mm' }}</span>
+          </td>
+          <td class="td-center">{{ b.attendeeCount }}<span class="td-cap">/{{ b.boardroom.capacity }}</span></td>
+          <td class="td-muted">{{ bookerLabel(b) }}</td>
+          <td>
+            <span class="badge badge-{{ b.status }}">{{ statusLabel(b.status) }}</span>
+          </td>
+          <td class="td-actions">
+            @if (canApprove(b)) {
+              <button class="btn-action btn-action-primary" [disabled]="busyId() === b.id" (click)="approve(b)">
+                Approve
+              </button>
+            }
+            @if (canEdit(b)) {
+              <button class="btn-action btn-action-ghost" [disabled]="busyId() === b.id" (click)="openEdit(b)">
+                Edit
+              </button>
+            }
+            @if (canCancel(b)) {
+              <button class="btn-action btn-action-danger" [disabled]="busyId() === b.id" (click)="cancel(b)">
+                Cancel
+              </button>
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</ng-template>

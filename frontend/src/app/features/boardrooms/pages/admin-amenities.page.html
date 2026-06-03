@@ -1,79 +1,100 @@
 <section class="page">
-  <header class="head">
+
+  <header class="page-head">
     <div>
       <h1>Amenities</h1>
-      <p class="lede">Manage the equipment and features that can be assigned to boardrooms.</p>
+      <p class="lede">Manage equipment and features that can be assigned to boardrooms and requested when booking.</p>
     </div>
-    <button type="button" class="btn primary" (click)="startCreate()">+ New amenity</button>
+    <button class="btn-new" type="button" (click)="startCreate()">+ New Amenity</button>
   </header>
 
   @if (error(); as err) {
-    <div class="banner error">{{ err }}</div>
+    <div class="alert-error">{{ err }}</div>
   }
 
   <div class="layout">
-    <div class="list">
+
+    <!-- Left: amenity list -->
+    <div class="list-panel">
       @if (loading()) {
-        <div class="empty">Loading…</div>
+        <app-spinner label="Loading amenities…" />
       } @else if (amenities().length === 0) {
-        <div class="empty">No amenities yet. Create your first one on the right.</div>
+        <div class="empty-state">
+          <div class="empty-icon">—</div>
+          <p class="empty-title">No amenities yet</p>
+          <p class="empty-sub">Add your first amenity using the form on the right.</p>
+        </div>
       } @else {
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Description</th>
-              <th>Icon</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (a of amenities(); track a.id) {
-              <tr [class.active]="editingId() === a.id">
-                <td><strong>{{ a.name }}</strong></td>
-                <td class="muted">{{ a.description || '—' }}</td>
-                <td class="muted">{{ a.icon || '—' }}</td>
-                <td class="actions">
-                  <button type="button" class="link" (click)="startEdit(a)">Edit</button>
-                  <button type="button" class="link danger" (click)="remove(a)">Delete</button>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
+        <div class="amenity-grid">
+          @for (a of amenities(); track a.id) {
+            <div class="amenity-card" [class.editing]="editingId() === a.id">
+              <div class="amenity-icon-wrap">
+                {{ a.icon || a.name[0].toUpperCase() }}
+              </div>
+              <div class="amenity-info">
+                <div class="amenity-name">{{ a.name }}</div>
+                @if (a.description) {
+                  <div class="amenity-desc">{{ a.description }}</div>
+                } @else {
+                  <div class="amenity-desc no-desc">No description</div>
+                }
+              </div>
+              <div class="amenity-actions">
+                <button class="icon-btn" title="Edit" (click)="startEdit(a)">✎</button>
+                <button class="icon-btn icon-btn-danger" title="Delete" (click)="remove(a)">✕</button>
+              </div>
+            </div>
+          }
+        </div>
       }
     </div>
 
-    <aside class="form-card">
-      <h2>{{ editingId() ? 'Edit amenity' : 'New amenity' }}</h2>
+    <!-- Right: form panel -->
+    <aside class="form-panel">
+      <div class="form-panel-header">
+        <h2>{{ editingId() ? 'Edit Amenity' : 'New Amenity' }}</h2>
+        @if (editingId()) {
+          <span class="editing-badge">Editing</span>
+        }
+      </div>
+
       <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-        <label class="field">
-          <span>Name</span>
-          <input type="text" formControlName="name" maxlength="80" />
+
+        <label class="f-field">
+          <span class="f-label">Name *</span>
+          <input type="text" formControlName="name" maxlength="80" placeholder="e.g. Projector" />
           @if (form.controls.name.touched && form.controls.name.invalid) {
-            <small class="error">Name must be 2–80 characters.</small>
+            <span class="f-error">Name must be 2–80 characters.</span>
           }
         </label>
 
-        <label class="field">
-          <span>Description</span>
-          <textarea formControlName="description" rows="3" maxlength="500"></textarea>
+        <label class="f-field">
+          <span class="f-label">Description <span class="f-optional">(optional)</span></span>
+          <textarea formControlName="description" rows="3" maxlength="500"
+            placeholder="What this amenity provides…"></textarea>
         </label>
 
-        <label class="field">
-          <span>Icon key</span>
-          <input type="text" formControlName="icon" maxlength="64" placeholder="e.g. projector" />
+        <label class="f-field">
+          <span class="f-label">Icon <span class="f-optional">(emoji or short label)</span></span>
+          <div class="icon-input-wrap">
+            <input type="text" formControlName="icon" maxlength="8" placeholder="e.g. 📽 or TV" />
+            <div class="icon-preview">
+              {{ form.controls.icon.value || '?' }}
+            </div>
+          </div>
+          <span class="f-hint">Paste an emoji or type a short label. Shows on room cards.</span>
         </label>
 
-        <div class="form-actions">
+        <div class="f-actions">
           @if (editingId()) {
-            <button type="button" class="btn ghost" (click)="cancel()">Cancel</button>
+            <button type="button" class="btn-cancel" (click)="cancel()">Cancel</button>
           }
-          <button type="submit" class="btn primary" [disabled]="saving()">
-            {{ saving() ? 'Saving…' : editingId() ? 'Save changes' : 'Create amenity' }}
+          <button type="submit" class="btn-save" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : (editingId() ? 'Save changes' : 'Create amenity') }}
           </button>
         </div>
       </form>
     </aside>
+
   </div>
 </section>

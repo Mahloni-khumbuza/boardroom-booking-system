@@ -3,6 +3,9 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 
+import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
+import { DialogService } from '../../../core/services/dialog.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { AuthService } from '../../auth/services/auth.service';
 import { AdminUser, RoleSummary } from '../models/user.model';
 import { RolesService } from '../services/roles.service';
@@ -11,7 +14,7 @@ import { UsersService } from '../services/users.service';
 @Component({
   selector: 'app-users-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, SpinnerComponent],
   templateUrl: './users.page.html',
   styleUrl: './users.page.css'
 })
@@ -20,6 +23,8 @@ export class UsersPage {
   private readonly usersService = inject(UsersService);
   private readonly rolesService = inject(RolesService);
   private readonly auth = inject(AuthService);
+  private readonly dialog = inject(DialogService);
+  private readonly toast = inject(ToastService);
 
   readonly users = signal<AdminUser[]>([]);
   readonly roles = signal<RoleSummary[]>([]);
@@ -77,7 +82,7 @@ export class UsersPage {
         roleId: ''
       });
     } else {
-      const defaultRole = this.roles().find((r) => r.name === 'User');
+      const defaultRole = this.roles().find((r) => r.name === 'Employee');
       this.createForm.reset({
         firstName: '',
         lastName: '',
@@ -111,6 +116,7 @@ export class UsersPage {
           this.creating.set(false);
           this.toggleCreate();
           this.refresh();
+          this.toast.success('User created successfully.');
         },
         error: (err) => {
           this.error.set(this.errorMessage(err));
@@ -128,24 +134,26 @@ export class UsersPage {
   promoteToSuperAdmin(user: AdminUser): void {
     const roleId = this.superAdminRoleId();
     if (!roleId) return;
-    if (
-      !confirm(
-        `Promote ${user.firstName} ${user.lastName} to SuperAdmin? They will gain full system access.`
-      )
-    ) {
-      return;
-    }
-    this.busyId.set(user.id);
-    this.error.set(null);
-    this.usersService.update(user.id, { roleId }).subscribe({
-      next: (updated) => {
-        this.users.update((list) => list.map((u) => (u.id === updated.id ? updated : u)));
-        this.busyId.set(null);
-      },
-      error: (err) => {
-        this.error.set(this.errorMessage(err));
-        this.busyId.set(null);
-      }
+    this.dialog.confirm({
+      title: 'Promote to SuperAdmin',
+      message: `Promote ${user.firstName} ${user.lastName} to SuperAdmin? They will gain full system access.`,
+      confirmLabel: 'Promote',
+      danger: true,
+    }).subscribe((confirmed) => {
+      if (!confirmed) return;
+      this.busyId.set(user.id);
+      this.error.set(null);
+      this.usersService.update(user.id, { roleId }).subscribe({
+        next: (updated) => {
+          this.users.update((list) => list.map((u) => (u.id === updated.id ? updated : u)));
+          this.busyId.set(null);
+          this.toast.success(`${user.firstName} ${user.lastName} promoted to SuperAdmin.`);
+        },
+        error: (err) => {
+          this.error.set(this.errorMessage(err));
+          this.busyId.set(null);
+        }
+      });
     });
   }
 

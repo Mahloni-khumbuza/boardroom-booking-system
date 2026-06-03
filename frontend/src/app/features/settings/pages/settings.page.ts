@@ -1,7 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
+import { DialogService } from '../../../core/services/dialog.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { AuthService } from '../../auth/services/auth.service';
 import { SystemSetting } from '../models/system-setting.model';
 import { SystemSettingsService } from '../services/system-settings.service';
@@ -25,7 +27,23 @@ export class SettingsPage {
   readonly saving = signal(false);
   readonly showCreate = signal(false);
 
+  private readonly dialog = inject(DialogService);
+  private readonly toast = inject(ToastService);
+
   readonly canEdit = this.auth.isSuperAdmin;
+
+  readonly groupedSettings = computed(() => {
+    const map = new Map<string, SystemSetting[]>();
+    for (const s of this.settings()) {
+      const category = s.key.includes('.') ? s.key.split('.')[0] : 'general';
+      const group = map.get(category) ?? [];
+      group.push(s);
+      map.set(category, group);
+    }
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([category, items]) => ({ category, items }));
+  });
 
   readonly editForm = this.fb.nonNullable.group({
     value: [''],
@@ -84,6 +102,7 @@ export class SettingsPage {
           this.settings.update((list) => list.map((s) => (s.id === updated.id ? updated : s)));
           this.editingId.set(null);
           this.saving.set(false);
+          this.toast.success('Setting updated.');
         },
         error: (err) => {
           this.error.set(this.errorMessage(err));
@@ -120,6 +139,7 @@ export class SettingsPage {
           this.showCreate.set(false);
           this.saving.set(false);
           this.refresh();
+          this.toast.success('Setting created.');
         },
         error: (err) => {
           this.error.set(this.errorMessage(err));
@@ -129,11 +149,14 @@ export class SettingsPage {
   }
 
   remove(setting: SystemSetting): void {
-    if (!confirm(`Delete setting "${setting.key}"?`)) return;
-    this.service.remove(setting.id).subscribe({
-      next: () => this.refresh(),
-      error: (err) => this.error.set(this.errorMessage(err))
-    });
+    this.dialog.confirm({ title: 'Delete Setting', message: `Delete setting "${setting.key}"?`, confirmLabel: 'Delete', danger: true })
+      .subscribe((confirmed) => {
+        if (!confirmed) return;
+        this.service.remove(setting.id).subscribe({
+          next: () => { this.refresh(); this.toast.success('Setting deleted.'); },
+          error: (err) => this.error.set(this.errorMessage(err))
+        });
+      });
   }
 
   private errorMessage(err: unknown): string {

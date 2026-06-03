@@ -87,6 +87,20 @@ button[type='submit']:disabled {
   margin-bottom: 16px;
 }
 
+.form-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.forgot-link {
+  font-size: 0.83rem;
+  color: #4f46e5;
+  text-decoration: none;
+}
+
+.forgot-link:hover { text-decoration: underline; }
+
 .foot {
   text-align: center;
   margin: 16px 0 0;

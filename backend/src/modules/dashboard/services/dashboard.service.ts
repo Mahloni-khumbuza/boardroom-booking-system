@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThanOrEqual, Repository } from 'typeorm';
 import { Boardroom } from '../../boardrooms/entities/boardroom.entity';
@@ -13,6 +13,8 @@ import {
 
 @Injectable()
 export class DashboardService {
+  private readonly logger = new Logger(DashboardService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly usersRepo: Repository<User>,
@@ -25,6 +27,7 @@ export class DashboardService {
   ) {}
 
   async getAdminStats(): Promise<DashboardStatsDto> {
+    try {
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const endOfToday = new Date(startOfToday);
@@ -85,9 +88,14 @@ export class DashboardService {
       bookingsThisWeek,
       upcomingBookings: upcoming.map((b) => this.toUpcoming(b)),
     };
+    } catch (err) {
+      this.logger.error('Unexpected error in getAdminStats', err instanceof Error ? err.stack : String(err));
+      throw new InternalServerErrorException('An unexpected error occurred');
+    }
   }
 
   async getEmployeeStats(userId: string): Promise<EmployeeDashboardStatsDto> {
+    try {
     const now = new Date();
     const [myUpcoming, myPending, activeBoardrooms, upcoming, unread] = await Promise.all([
       this.bookingsRepo.count({
@@ -120,6 +128,10 @@ export class DashboardService {
       upcomingBookings: upcoming.map((b) => this.toUpcoming(b)),
       unreadNotifications: unread,
     };
+    } catch (err) {
+      this.logger.error('Unexpected error in getEmployeeStats', err instanceof Error ? err.stack : String(err));
+      throw new InternalServerErrorException('An unexpected error occurred');
+    }
   }
 
   private toUpcoming(b: Booking): UpcomingBookingDto {

@@ -1,12 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
+import { AuthService } from '../../auth/services/auth.service';
 import { Booking } from '../../bookings/models/booking.model';
 import { BookingsService } from '../../bookings/services/bookings.service';
 import { Boardroom } from '../models/boardroom.model';
 import { BoardroomsService } from '../services/boardrooms.service';
+import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
 
 interface AvailabilityDay {
   date: Date;
@@ -17,19 +19,23 @@ interface AvailabilityDay {
 @Component({
   selector: 'app-boardroom-detail-page',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, SpinnerComponent],
   templateUrl: './boardroom-detail.page.html',
   styleUrl: './boardroom-detail.page.css'
 })
 export class BoardroomDetailPage {
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly boardroomsService = inject(BoardroomsService);
   private readonly bookingsService = inject(BookingsService);
+  private readonly auth = inject(AuthService);
 
   readonly boardroom = signal<Boardroom | null>(null);
   readonly bookings = signal<Booking[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
+
+  readonly isAdmin = this.auth.isAdmin;
 
   readonly days = computed<AvailabilityDay[]>(() => {
     const now = new Date();
@@ -58,9 +64,13 @@ export class BoardroomDetailPage {
 
   constructor() {
     const id = this.route.snapshot.paramMap.get('id');
-    if (id) {
-      this.load(id);
-    }
+    if (id) this.load(id);
+  }
+
+  bookRoom(): void {
+    void this.router.navigate(['/employee/bookings'], {
+      queryParams: { boardroomId: this.boardroom()?.id }
+    });
   }
 
   private load(id: string): void {
@@ -72,11 +82,7 @@ export class BoardroomDetailPage {
 
     forkJoin({
       room: this.boardroomsService.get(id),
-      bookings: this.bookingsService.list({
-        boardroomId: id,
-        from: now.toISOString(),
-        to: sevenDays.toISOString()
-      })
+      bookings: this.bookingsService.list({ boardroomId: id, from: now.toISOString(), to: sevenDays.toISOString() })
     }).subscribe({
       next: ({ room, bookings }) => {
         this.boardroom.set(room);
@@ -103,14 +109,8 @@ function formatDayLabel(d: Date): string {
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
   const sameDay = (a: Date, b: Date): boolean =>
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate();
-  const dateStr = d.toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric'
-  });
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  const dateStr = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
   if (sameDay(d, today)) return `Today · ${dateStr}`;
   if (sameDay(d, tomorrow)) return `Tomorrow · ${dateStr}`;
   return dateStr;

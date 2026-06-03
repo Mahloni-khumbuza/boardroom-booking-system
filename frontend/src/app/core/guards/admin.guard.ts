@@ -10,6 +10,12 @@ export const adminGuard: CanActivateFn = () => {
   if (!auth.isAuthenticated()) {
     return router.createUrlTree(['/login']);
   }
+  if (auth.isSuperAdmin()) {
+    return router.createUrlTree(['/superadmin/dashboard']);
+  }
+  if (auth.isFacilitiesManager()) {
+    return router.createUrlTree(['/facilities/dashboard']);
+  }
   if (!auth.isAdmin()) {
     return router.createUrlTree(['/employee/dashboard']);
   }

@@ -3,15 +3,15 @@
     <div>
       <h1>System Settings</h1>
       <p class="lede">
-        Configuration values used across the system.
+        Booking rules and configuration values used across the system.
         @if (!canEdit()) {
-          Only SuperAdmins can change these values.
+          <span class="readonly-note">View only — SuperAdmin access required to edit.</span>
         }
       </p>
     </div>
     @if (canEdit()) {
       <button type="button" class="btn primary" (click)="toggleCreate()">
-        {{ showCreate() ? 'Close' : '+ New setting' }}
+        {{ showCreate() ? 'Cancel' : '+ New Setting' }}
       </button>
     }
   </header>
@@ -21,89 +21,100 @@
   }
 
   @if (canEdit() && showCreate()) {
-    <div class="create-card">
-      <h2>New setting</h2>
+    <div class="card create-card">
+      <h2>New Setting</h2>
       <form [formGroup]="createForm" (ngSubmit)="submitCreate()" novalidate>
-        <label class="field">
-          <span>Key</span>
-          <input type="text" formControlName="key" placeholder="booking.max_advance_days" />
-          @if (createForm.controls.key.touched && createForm.controls.key.invalid) {
-            <small class="error">Use lowercase letters, digits, dots, hyphens, underscores.</small>
-          }
-        </label>
-        <label class="field">
-          <span>Value</span>
-          <input type="text" formControlName="value" />
-        </label>
+        <div class="form-row">
+          <label class="field">
+            <span>Key <span class="hint">e.g. booking.max_advance_days</span></span>
+            <input type="text" formControlName="key" placeholder="booking.max_advance_days" />
+            @if (createForm.controls.key.touched && createForm.controls.key.invalid) {
+              <small class="field-error">Lowercase letters, digits, dots, hyphens, underscores only.</small>
+            }
+          </label>
+          <label class="field">
+            <span>Value</span>
+            <input type="text" formControlName="value" placeholder="e.g. 30" />
+          </label>
+        </div>
         <label class="field">
           <span>Description</span>
-          <textarea formControlName="description" rows="2" maxlength="500"></textarea>
+          <input type="text" formControlName="description" maxlength="500" placeholder="What this setting controls" />
         </label>
         <div class="form-actions">
           <button type="button" class="btn ghost" (click)="toggleCreate()">Cancel</button>
           <button type="submit" class="btn primary" [disabled]="saving()">
-            {{ saving() ? 'Creating…' : 'Create setting' }}
+            {{ saving() ? 'Creating…' : 'Create Setting' }}
           </button>
         </div>
       </form>
     </div>
   }
 
-  <div class="list">
-    @if (loading()) {
-      <div class="empty">Loading…</div>
-    } @else if (settings().length === 0) {
-      <div class="empty">No settings yet.</div>
-    } @else {
-      <table>
-        <thead>
-          <tr>
-            <th>Key</th>
-            <th>Value</th>
-            <th>Description</th>
-            <th>Updated</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (s of settings(); track s.id) {
-            <tr [class.editing]="editingId() === s.id">
-              @if (editingId() === s.id) {
-                <td colspan="5" class="edit-row">
-                  <form [formGroup]="editForm" (ngSubmit)="submitEdit(s)" novalidate class="inline-form">
-                    <div class="inline-key"><strong>{{ s.key }}</strong></div>
-                    <label class="field">
-                      <span>Value</span>
-                      <input type="text" formControlName="value" />
-                    </label>
-                    <label class="field">
-                      <span>Description</span>
-                      <input type="text" formControlName="description" maxlength="500" />
-                    </label>
-                    <div class="form-actions">
-                      <button type="button" class="btn ghost small" (click)="cancelEdit()">Cancel</button>
-                      <button type="submit" class="btn primary small" [disabled]="saving()">
-                        {{ saving() ? 'Saving…' : 'Save' }}
-                      </button>
-                    </div>
-                  </form>
-                </td>
-              } @else {
-                <td><code>{{ s.key }}</code></td>
-                <td class="value">{{ s.value || '—' }}</td>
-                <td class="muted">{{ s.description || '—' }}</td>
-                <td class="muted small">{{ s.updatedAt | date: 'short' }}</td>
-                <td class="actions">
-                  @if (canEdit()) {
-                    <button type="button" class="link" (click)="startEdit(s)">Edit</button>
-                    <button type="button" class="link danger" (click)="remove(s)">Delete</button>
-                  }
-                </td>
-              }
+  @if (loading()) {
+    <div class="card empty">Loading settings…</div>
+  } @else if (settings().length === 0) {
+    <div class="card empty">No settings configured yet.</div>
+  } @else {
+    @for (group of groupedSettings(); track group.category) {
+      <div class="card">
+        <div class="group-header">
+          <span class="category-badge">{{ group.category }}</span>
+          <span class="group-count">{{ group.items.length }} setting{{ group.items.length === 1 ? '' : 's' }}</span>
+        </div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Key</th>
+              <th>Value</th>
+              <th>Description</th>
+              <th>Updated</th>
+              @if (canEdit()) { <th></th> }
             </tr>
-          }
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            @for (s of group.items; track s.id) {
+              @if (editingId() === s.id) {
+                <tr class="editing-row">
+                  <td><code class="key-code">{{ s.key }}</code></td>
+                  <td colspan="3">
+                    <form [formGroup]="editForm" (ngSubmit)="submitEdit(s)" novalidate class="inline-edit">
+                      <label class="field-inline">
+                        <span>Value</span>
+                        <input type="text" formControlName="value" />
+                      </label>
+                      <label class="field-inline">
+                        <span>Description</span>
+                        <input type="text" formControlName="description" maxlength="500" />
+                      </label>
+                      <div class="inline-actions">
+                        <button type="button" class="btn ghost small" (click)="cancelEdit()">Cancel</button>
+                        <button type="submit" class="btn primary small" [disabled]="saving()">
+                          {{ saving() ? 'Saving…' : 'Save' }}
+                        </button>
+                      </div>
+                    </form>
+                  </td>
+                  @if (canEdit()) { <td></td> }
+                </tr>
+              } @else {
+                <tr>
+                  <td><code class="key-code">{{ s.key }}</code></td>
+                  <td class="value-cell">{{ s.value || '—' }}</td>
+                  <td class="muted">{{ s.description || '—' }}</td>
+                  <td class="muted small">{{ s.updatedAt | date:'dd MMM yyyy, HH:mm' }}</td>
+                  @if (canEdit()) {
+                    <td class="actions">
+                      <button type="button" class="btn-link" (click)="startEdit(s)">Edit</button>
+                      <button type="button" class="btn-link danger" (click)="remove(s)">Delete</button>
+                    </td>
+                  }
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
     }
-  </div>
+  }
 </section>

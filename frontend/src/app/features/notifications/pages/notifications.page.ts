@@ -3,6 +3,9 @@ import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 
+import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
+import { DialogService } from '../../../core/services/dialog.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { AuthService } from '../../auth/services/auth.service';
 import { AdminUser } from '../../users/models/user.model';
 import { UsersService } from '../../users/services/users.service';
@@ -14,13 +17,16 @@ const TYPE_OPTIONS: { value: NotificationType; label: string }[] = [
   { value: 'system', label: 'System' },
   { value: 'booking_created', label: 'Booking created' },
   { value: 'booking_cancelled', label: 'Booking cancelled' },
-  { value: 'booking_reminder', label: 'Booking reminder' }
+  { value: 'booking_reminder', label: 'Booking reminder' },
+  { value: 'setup', label: 'Room setup' },
+  { value: 'catering', label: 'Catering' },
+  { value: 'maintenance', label: 'Maintenance' }
 ];
 
 @Component({
   selector: 'app-notifications-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, SpinnerComponent],
   templateUrl: './notifications.page.html',
   styleUrl: './notifications.page.css'
 })
@@ -29,6 +35,8 @@ export class NotificationsPage {
   private readonly service = inject(NotificationsService);
   private readonly usersService = inject(UsersService);
   private readonly auth = inject(AuthService);
+  private readonly dialog = inject(DialogService);
+  private readonly toast = inject(ToastService);
 
   readonly notifications = signal<AppNotification[]>([]);
   readonly recipients = signal<AdminUser[]>([]);
@@ -145,13 +153,14 @@ export class NotificationsPage {
   }
 
   remove(note: AppNotification): void {
-    if (!confirm(`Delete this notification?`)) return;
-    this.service.remove(note.id).subscribe({
-      next: () => {
-        this.notifications.update((list) => list.filter((n) => n.id !== note.id));
-      },
-      error: (err) => this.error.set(this.errorMessage(err))
-    });
+    this.dialog.confirm({ title: 'Delete Notification', message: 'Delete this notification?', confirmLabel: 'Delete', danger: true })
+      .subscribe((confirmed) => {
+        if (!confirmed) return;
+        this.service.remove(note.id).subscribe({
+          next: () => { this.notifications.update((list) => list.filter((n) => n.id !== note.id)); this.toast.success('Notification deleted.'); },
+          error: (err) => this.error.set(this.errorMessage(err))
+        });
+      });
   }
 
   fullName(user: AdminUser): string {

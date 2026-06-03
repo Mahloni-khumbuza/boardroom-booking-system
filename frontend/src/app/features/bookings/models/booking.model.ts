@@ -38,6 +38,11 @@ export interface BookingCreateRequest {
   startTime: string;
   endTime: string;
   attendeeCount: number;
+  meetingType?: string;
+  requiresCatering?: boolean;
+  cateringNotes?: string;
+  requiresSetup?: boolean;
+  setupNotes?: string;
   requestedAmenityIds?: string[];
 }
 

@@ -3,66 +3,115 @@
     <div>
       <h1>Calendar</h1>
       <p class="lede">
-        @if (isAdmin()) {
-          Upcoming bookings across the organization, grouped by day.
-        } @else {
-          Your upcoming bookings, grouped by day.
-        }
+        @if (isAdmin() || isSuperAdmin()) { All bookings across the organisation. }
+        @else { Your upcoming bookings. }
       </p>
     </div>
+    <button class="btn ghost small" (click)="refresh()" [disabled]="loading()">Refresh</button>
   </header>
-
-  <div class="filters">
-    <label class="field">
-      <span>Boardroom</span>
-      <select [value]="boardroomFilter()" (change)="setBoardroomFilter($any($event.target).value)">
-        <option value="">All</option>
-        @for (r of boardrooms(); track r.id) {
-          <option [value]="r.id">{{ r.name }}</option>
-        }
-      </select>
-    </label>
-  </div>
 
   @if (error(); as err) {
     <div class="banner error">{{ err }}</div>
   }
 
+  <div class="toolbar">
+    <label class="field">
+      <span>Room</span>
+      <select [ngModel]="boardroomFilter()" (ngModelChange)="setBoardroomFilter($event)">
+        <option value="">All rooms</option>
+        @for (r of boardrooms(); track r.id) {
+          <option [value]="r.id">{{ r.name }}</option>
+        }
+      </select>
+    </label>
+
+    @if (isAdmin() || isSuperAdmin()) {
+      <label class="toggle-label">
+        <input type="checkbox" [ngModel]="mineOnly()" (ngModelChange)="mineOnly.set($event); refresh()" />
+        My bookings only
+      </label>
+    }
+
+    <div class="legend">
+      <span class="legend-item confirmed">Confirmed</span>
+      <span class="legend-item pending">Pending</span>
+      <span class="legend-item completed">Completed</span>
+      <span class="legend-item cancelled">Cancelled</span>
+    </div>
+  </div>
+
   @if (loading()) {
-    <div class="empty">Loading…</div>
-  } @else if (groups().length === 0) {
-    <div class="empty">No upcoming bookings.</div>
-  } @else {
-    <div class="agenda">
-      @for (group of groups(); track group.label) {
-        <section class="day">
-          <header class="day-head">{{ group.label }}</header>
-          <ol class="entries">
-            @for (entry of group.entries; track entry.id) {
-              <li class="entry">
-                <div class="time">
-                  {{ entry.startTime | date: 'shortTime' }}
-                  <span class="dash">–</span>
-                  {{ entry.endTime | date: 'shortTime' }}
-                </div>
-                <div class="body">
-                  <div class="title-row">
-                    <strong>{{ entry.title }}</strong>
-                    @if (entry.status === 'pending') {
-                      <span class="badge pending">Pending</span>
-                    }
-                  </div>
-                  <div class="meta">
-                    <span class="room">{{ entry.boardroomName }}</span>
-                    @if (entry.subtitle) {
-                      <span class="muted">· {{ entry.subtitle }}</span>
-                    }
-                  </div>
-                </div>
-              </li>
+    <app-spinner label="Loading…" />
+  }
+
+  <div class="cal-wrap">
+    <full-calendar [options]="calendarOptions" />
+  </div>
+
+  <!-- Booking detail panel -->
+  @if (selected(); as s) {
+    <div class="overlay" (click)="closeDetail()"></div>
+    <div class="detail-panel">
+      <div class="detail-header status-{{ s.booking.status }}">
+        <div class="detail-status-row">
+          <span class="status-badge status-{{ s.booking.status }}">{{ statusLabel(s.booking.status) }}</span>
+          <button class="close-btn" (click)="closeDetail()">✕</button>
+        </div>
+        <h2 class="detail-title">{{ s.booking.title }}</h2>
+      </div>
+
+      <div class="detail-body">
+        <div class="detail-row">
+          <span class="detail-label">Room</span>
+          <span>{{ s.booking.boardroom.name }}
+            @if (s.booking.boardroom.location) {
+              <span class="muted"> · {{ s.booking.boardroom.location }}</span>
             }
-          </ol>
-        </section>
+          </span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Start</span>
+          <span>{{ formatTime(s.booking.startTime) }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">End</span>
+          <span>{{ formatTime(s.booking.endTime) }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Attendees</span>
+          <span>{{ s.booking.attendeeCount }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Booked by</span>
+          <span>{{ bookerName(s.booking) }}</span>
+        </div>
+        @if (s.booking.description) {
+          <div class="detail-row">
+            <span class="detail-label">Notes</span>
+            <span>{{ s.booking.description }}</span>
+          </div>
+        }
+        @if (s.booking.requestedAmenities.length) {
+          <div class="detail-row">
+            <span class="detail-label">Amenities</span>
+            <div class="chip-list">
+              @for (a of s.booking.requestedAmenities; track a.id) {
+                <span class="chip">{{ a.name }}</span>
+              }
+            </div>
+          </div>
+        }
+      </div>
+
+      @if (s.canApprove || s.canCancel) {
+        <div class="detail-actions">
+          @if (s.canApprove) {
+            <button class="btn primary" (click)="approveBooking()">Approve</button>
+          }
+          @if (s.canCancel) {
+            <button class="btn danger" (click)="cancelBooking()">Cancel Booking</button>
+          }
+        </div>
       }
     </div>
   }

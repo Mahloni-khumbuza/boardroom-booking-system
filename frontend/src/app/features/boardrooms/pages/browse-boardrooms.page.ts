@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
+import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
 import { Amenity, Boardroom } from '../models/boardroom.model';
 import { AmenitiesService } from '../services/amenities.service';
 import { BoardroomsService } from '../services/boardrooms.service';
@@ -11,7 +12,7 @@ import { BoardroomsService } from '../services/boardrooms.service';
 @Component({
   selector: 'app-browse-boardrooms-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, SpinnerComponent],
   templateUrl: './browse-boardrooms.page.html',
   styleUrl: './browse-boardrooms.page.css'
 })
@@ -28,52 +29,48 @@ export class BrowseBoardroomsPage {
   readonly location = signal('');
   readonly selectedAmenityIds = signal<Set<string>>(new Set());
 
+  // Client-side text search only — capacity/location/amenity filters are server-side
   readonly filtered = computed(() => {
     const q = this.search().trim().toLowerCase();
-    const min = this.minCapacity();
-    const loc = this.location().trim().toLowerCase();
-    const amenityIds = this.selectedAmenityIds();
-
-    return this.boardrooms().filter((r) => {
-      if (min !== null && r.capacity < min) return false;
-      if (loc && !(r.location ?? '').toLowerCase().includes(loc)) return false;
-      if (amenityIds.size > 0) {
-        const roomAmenities = new Set(r.amenities.map((a) => a.id));
-        for (const required of amenityIds) {
-          if (!roomAmenities.has(required)) return false;
-        }
-      }
-      if (!q) return true;
-      return (
-        r.name.toLowerCase().includes(q) ||
-        (r.location ?? '').toLowerCase().includes(q) ||
-        (r.description ?? '').toLowerCase().includes(q) ||
-        r.amenities.some((a) => a.name.toLowerCase().includes(q))
-      );
-    });
+    if (!q) return this.boardrooms();
+    return this.boardrooms().filter((r) =>
+      r.name.toLowerCase().includes(q) ||
+      (r.location ?? '').toLowerCase().includes(q) ||
+      (r.description ?? '').toLowerCase().includes(q) ||
+      r.amenities.some((a) => a.name.toLowerCase().includes(q))
+    );
   });
 
   constructor() {
-    this.refresh();
+    this.loadAmenities();
+    this.fetchRooms();
   }
 
-  refresh(): void {
+  private loadAmenities(): void {
+    this.amenitiesService.list().subscribe({
+      next: (amenities) => this.allAmenities.set(amenities),
+      error: () => {}
+    });
+  }
+
+  private fetchRooms(): void {
     this.loading.set(true);
     this.error.set(null);
-    forkJoin({
-      rooms: this.boardroomsService.list(true),
-      amenities: this.amenitiesService.list()
+    this.boardroomsService.list({
+      activeOnly: true,
+      minCapacity: this.minCapacity() ?? undefined,
+      location: this.location() || undefined,
+      amenityIds: this.selectedAmenityIds().size > 0
+        ? Array.from(this.selectedAmenityIds())
+        : undefined
     }).subscribe({
-      next: ({ rooms, amenities }) => {
-        this.boardrooms.set(rooms);
-        this.allAmenities.set(amenities);
-        this.loading.set(false);
-      },
-      error: (err) => {
-        this.error.set(this.errorMessage(err));
-        this.loading.set(false);
-      }
+      next: (rooms) => { this.boardrooms.set(rooms); this.loading.set(false); },
+      error: (err) => { this.error.set(this.errorMessage(err)); this.loading.set(false); }
     });
+  }
+
+  applyFilters(): void {
+    this.fetchRooms();
   }
 
   setSearch(value: string): void {
@@ -91,11 +88,7 @@ export class BrowseBoardroomsPage {
 
   toggleAmenity(id: string): void {
     const set = new Set(this.selectedAmenityIds());
-    if (set.has(id)) {
-      set.delete(id);
-    } else {
-      set.add(id);
-    }
+    set.has(id) ? set.delete(id) : set.add(id);
     this.selectedAmenityIds.set(set);
   }
 
@@ -108,6 +101,7 @@ export class BrowseBoardroomsPage {
     this.location.set('');
     this.minCapacity.set(null);
     this.selectedAmenityIds.set(new Set());
+    this.fetchRooms();
   }
 
   private errorMessage(err: unknown): string {

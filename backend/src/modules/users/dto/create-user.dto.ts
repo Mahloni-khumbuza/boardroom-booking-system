@@ -38,6 +38,24 @@ export class CreateUserDto {
   @IsUUID('4')
   roleId?: string;
 
+  @ApiProperty({ required: false, example: '+27821234567' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  phoneNumber?: string;
+
+  @ApiProperty({ required: false, example: 'Engineering' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  department?: string;
+
+  @ApiProperty({ required: false, example: 'Senior Developer' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  jobTitle?: string;
+
   @ApiProperty({ required: false, default: true })
   @IsOptional()
   @IsBoolean()

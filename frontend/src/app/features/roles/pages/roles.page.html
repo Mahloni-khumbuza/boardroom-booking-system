@@ -1,0 +1,101 @@
+<div class="page">
+  <div class="page-header">
+    <h1>Roles</h1>
+    <button class="btn btn-primary" (click)="openCreate()">+ New Role</button>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert-error">{{ error() }}</div>
+  }
+
+  @if (showForm()) {
+    <div class="card form-card">
+      <h2>{{ isEditing() ? 'Edit Role' : 'New Role' }}</h2>
+      <form [formGroup]="form" (ngSubmit)="submitForm()">
+        <div class="fields-row">
+          <div class="field">
+            <label>Name</label>
+            <input type="text" formControlName="name" placeholder="e.g. Facilities" />
+            @if (form.controls.name.invalid && form.controls.name.touched) {
+              <span class="field-error">Name is required (2–50 characters)</span>
+            }
+          </div>
+          <div class="field">
+            <label>Description</label>
+            <input type="text" formControlName="description" placeholder="Short description" />
+          </div>
+        </div>
+
+        @if (allPermissions().length > 0) {
+          <div class="perms-section">
+            <label class="perms-label">Permissions</label>
+            <div class="perms-grid">
+              @for (p of allPermissions(); track p.id) {
+                <label class="perm-item">
+                  <input type="checkbox" [checked]="isPermissionSelected(p.id)" (change)="togglePermission(p.id)" />
+                  <span class="perm-name">{{ p.name }}</span>
+                  @if (p.description) {
+                    <span class="perm-desc">{{ p.description }}</span>
+                  }
+                </label>
+              }
+            </div>
+          </div>
+        }
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" (click)="closeForm()">Cancel</button>
+          <button type="submit" class="btn btn-primary" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : (isEditing() ? 'Update' : 'Create') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+
+  @if (loading()) {
+    <p class="loading">Loading roles…</p>
+  } @else if (roles().length === 0) {
+    <div class="empty">No roles defined yet.</div>
+  } @else {
+    <div class="card">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Permissions</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (role of roles(); track role.id) {
+            <tr>
+              <td><strong>{{ role.name }}</strong></td>
+              <td class="muted">{{ role.description ?? '—' }}</td>
+              <td>
+                @if (role.permissions.length === 0) {
+                  <span class="muted">None</span>
+                } @else {
+                  <div class="perm-tags">
+                    @for (p of role.permissions; track p.id) {
+                      <code class="perm-tag">{{ p.name }}</code>
+                    }
+                  </div>
+                }
+              </td>
+              <td class="actions">
+                <button class="btn btn-sm btn-ghost" (click)="openEdit(role)">Edit</button>
+                @if (canDelete(role)) {
+                  <button class="btn btn-sm btn-danger" [disabled]="busyId() === role.id" (click)="remove(role)">
+                    {{ busyId() === role.id ? '…' : 'Delete' }}
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

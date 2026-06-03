@@ -2,19 +2,24 @@ import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
+import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
+import { DialogService } from '../../../core/services/dialog.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { Amenity } from '../models/boardroom.model';
 import { AmenitiesService } from '../services/amenities.service';
 
 @Component({
   selector: 'app-admin-amenities-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, SpinnerComponent],
   templateUrl: './admin-amenities.page.html',
   styleUrl: './admin-amenities.page.css'
 })
 export class AdminAmenitiesPage {
   private readonly fb = inject(FormBuilder);
   private readonly amenitiesService = inject(AmenitiesService);
+  private readonly dialog = inject(DialogService);
+  private readonly toast = inject(ToastService);
 
   readonly amenities = signal<Amenity[]>([]);
   readonly loading = signal(false);
@@ -89,6 +94,7 @@ export class AdminAmenitiesPage {
     req.subscribe({
       next: () => {
         this.saving.set(false);
+        this.toast.success(id ? 'Amenity updated.' : 'Amenity created.');
         this.cancel();
         this.refresh();
       },
@@ -100,13 +106,14 @@ export class AdminAmenitiesPage {
   }
 
   remove(amenity: Amenity): void {
-    if (!confirm(`Delete amenity "${amenity.name}"?`)) {
-      return;
-    }
-    this.amenitiesService.remove(amenity.id).subscribe({
-      next: () => this.refresh(),
-      error: (err) => this.error.set(this.errorMessage(err))
-    });
+    this.dialog.confirm({ title: 'Delete Amenity', message: `Delete amenity "${amenity.name}"?`, confirmLabel: 'Delete', danger: true })
+      .subscribe((confirmed) => {
+        if (!confirmed) return;
+        this.amenitiesService.remove(amenity.id).subscribe({
+          next: () => { this.refresh(); this.toast.success('Amenity deleted.'); },
+          error: (err) => this.error.set(this.errorMessage(err))
+        });
+      });
   }
 
   private errorMessage(err: unknown): string {
