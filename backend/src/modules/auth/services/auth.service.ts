@@ -1,14 +1,11 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { AuditLogsService } from '../../audit-logs/services/audit-logs.service';
 import { UsersService } from '../../users/services/users.service';
 import { User } from '../../users/entities/user.entity';
-import { Role } from '../../roles/entities/role.entity';
 import { LoginDto } from '../dto/login.dto';
-import { RegisterDto } from '../dto/register.dto';
 import { LoginResponseDto } from '../dto/login-response.dto';
 
 export interface JwtPayload {
@@ -18,16 +15,13 @@ export interface JwtPayload {
   permissions: string[];
 }
 
-const DEFAULT_ROLE_NAME = 'User';
-
 @Injectable()
 export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-    @InjectRepository(Role)
-    private readonly rolesRepository: Repository<Role>,
+    private readonly auditLogs: AuditLogsService,
   ) {}
 
   async login(dto: LoginDto): Promise<LoginResponseDto> {
@@ -41,32 +35,15 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
+    await this.auditLogs.record({
+      action: 'auth.login',
+      entity: 'user',
+      entityId: user.id,
+      actorId: user.id,
+      metadata: { email: user.email, role: user.role?.name ?? null },
+    });
+
     return this.issueToken(user);
-  }
-
-  async register(dto: RegisterDto): Promise<LoginResponseDto> {
-    const existing = await this.usersService.findByEmail(dto.email);
-    if (existing) {
-      throw new ConflictException('A user with this email already exists');
-    }
-
-    const role = await this.rolesRepository.findOne({
-      where: { name: DEFAULT_ROLE_NAME },
-      relations: { permissions: true },
-    });
-
-    const passwordHash = await bcrypt.hash(dto.password, 10);
-    const user = await this.usersService.create({
-      firstName: dto.firstName,
-      lastName: dto.lastName,
-      email: dto.email,
-      passwordHash,
-      isActive: true,
-      role: role ?? null,
-    });
-
-    const fresh = (await this.usersService.findById(user.id)) ?? user;
-    return this.issueToken(fresh);
   }
 
   private issueToken(user: User): LoginResponseDto {
