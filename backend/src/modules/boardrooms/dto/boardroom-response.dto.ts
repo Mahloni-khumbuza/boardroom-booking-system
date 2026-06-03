@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { AmenityResponseDto } from '../../amenities/dto/amenity-response.dto';
+import { EquipmentStatus } from '../entities/boardroom.entity';
 
 export class BoardroomResponseDto {
   @ApiProperty()
@@ -7,6 +8,9 @@ export class BoardroomResponseDto {
 
   @ApiProperty({ example: 'Maple Boardroom' })
   name: string;
+
+  @ApiProperty({ nullable: true })
+  code: string | null;
 
   @ApiProperty({ nullable: true })
   description: string | null;
@@ -17,8 +21,44 @@ export class BoardroomResponseDto {
   @ApiProperty({ nullable: true })
   location: string | null;
 
+  @ApiProperty({ nullable: true })
+  floor: string | null;
+
+  @ApiProperty({ nullable: true })
+  building: string | null;
+
+  @ApiProperty({ nullable: true })
+  imageUrl: string | null;
+
   @ApiProperty()
   isActive: boolean;
+
+  @ApiProperty()
+  isBookable: boolean;
+
+  @ApiProperty()
+  requiresApproval: boolean;
+
+  @ApiProperty({ example: '08:00' })
+  openingTime: string;
+
+  @ApiProperty({ example: '18:00' })
+  closingTime: string;
+
+  @ApiProperty()
+  minimumBookingMinutes: number;
+
+  @ApiProperty()
+  maximumBookingMinutes: number;
+
+  @ApiProperty()
+  bufferTimeBeforeMinutes: number;
+
+  @ApiProperty()
+  bufferTimeAfterMinutes: number;
+
+  @ApiProperty({ enum: EquipmentStatus, example: EquipmentStatus.Ok })
+  equipmentStatus: EquipmentStatus;
 
   @ApiProperty({ type: [AmenityResponseDto] })
   amenities: AmenityResponseDto[];

@@ -1,8 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
+import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
+import { DialogService } from '../../../core/services/dialog.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { Amenity, Boardroom } from '../models/boardroom.model';
 import { AmenitiesService } from '../services/amenities.service';
 import { BoardroomsService } from '../services/boardrooms.service';
@@ -10,7 +14,7 @@ import { BoardroomsService } from '../services/boardrooms.service';
 @Component({
   selector: 'app-admin-boardrooms-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, SpinnerComponent, RouterLink],
   templateUrl: './admin-boardrooms.page.html',
   styleUrl: './admin-boardrooms.page.css'
 })
@@ -18,6 +22,13 @@ export class AdminBoardroomsPage {
   private readonly fb = inject(FormBuilder);
   private readonly boardroomsService = inject(BoardroomsService);
   private readonly amenitiesService = inject(AmenitiesService);
+  private readonly dialog = inject(DialogService);
+  private readonly toast = inject(ToastService);
+  private readonly router = inject(Router);
+
+  readonly amenitiesPath = this.router.url.startsWith('/superadmin')
+    ? '/superadmin/amenities'
+    : '/admin/amenities';
 
   readonly boardrooms = signal<Boardroom[]>([]);
   readonly amenities = signal<Amenity[]>([]);
@@ -129,6 +140,7 @@ export class AdminBoardroomsPage {
     req.subscribe({
       next: () => {
         this.saving.set(false);
+        this.toast.success(id ? 'Boardroom updated.' : 'Boardroom created.');
         this.startCreate();
         this.refresh();
       },
@@ -140,13 +152,14 @@ export class AdminBoardroomsPage {
   }
 
   remove(boardroom: Boardroom): void {
-    if (!confirm(`Delete boardroom "${boardroom.name}"?`)) {
-      return;
-    }
-    this.boardroomsService.remove(boardroom.id).subscribe({
-      next: () => this.refresh(),
-      error: (err) => this.error.set(this.errorMessage(err))
-    });
+    this.dialog.confirm({ title: 'Delete Boardroom', message: `Delete "${boardroom.name}"? All bookings for this room will also be removed.`, confirmLabel: 'Delete', danger: true })
+      .subscribe((confirmed) => {
+        if (!confirmed) return;
+        this.boardroomsService.remove(boardroom.id).subscribe({
+          next: () => { this.refresh(); this.toast.success('Boardroom deleted.'); },
+          error: (err) => this.error.set(this.errorMessage(err))
+        });
+      });
   }
 
   private errorMessage(err: unknown): string {

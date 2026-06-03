@@ -13,7 +13,7 @@ const ACCESS_TOKEN_KEY = 'bbs.accessToken';
 const REFRESH_TOKEN_KEY = 'bbs.refreshToken';
 const USER_KEY = 'bbs.user';
 
-const ADMIN_ROLES = new Set(['SuperAdmin', 'Admin', 'Manager']);
+const ADMIN_ROLES = new Set(['SuperAdmin', 'Admin', 'FacilitiesManager']);
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -33,13 +33,17 @@ export class AuthService {
     return r !== undefined && r !== null && ADMIN_ROLES.has(r);
   });
   readonly isSuperAdmin = computed(() => this.user()?.role === 'SuperAdmin');
+  readonly isFacilitiesManager = computed(() => this.user()?.role === 'FacilitiesManager');
 
   getAccessToken(): string | null {
     return this.accessToken();
   }
 
   homePath(): string {
-    return this.isAdmin() ? '/admin/dashboard' : '/employee/dashboard';
+    if (this.isSuperAdmin()) return '/superadmin/dashboard';
+    if (this.isFacilitiesManager()) return '/facilities/dashboard';
+    if (this.isAdmin()) return '/admin/dashboard';
+    return '/employee/dashboard';
   }
 
   login(payload: LoginRequest): Observable<LoginResponse> {

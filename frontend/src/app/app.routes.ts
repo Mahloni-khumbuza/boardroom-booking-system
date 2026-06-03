@@ -2,7 +2,31 @@ import { Routes } from '@angular/router';
 
 import { adminGuard } from './core/guards/admin.guard';
 import { authGuard } from './core/guards/auth.guard';
+import { facilitiesGuard } from './core/guards/facilities.guard';
+import { superAdminGuard } from './core/guards/super-admin.guard';
 import { NavItem } from './core/layouts/shell/shell.component';
+
+const FACILITIES_NAV: NavItem[] = [
+  { label: 'Dashboard', path: '/facilities/dashboard' },
+  { label: 'Bookings', path: '/facilities/bookings' },
+  { label: 'Room Equipment', path: '/facilities/equipment' },
+  { label: 'Room Blocks', path: '/facilities/room-blocks' },
+  { label: 'Notifications', path: '/facilities/notifications' }
+];
+
+const SUPER_ADMIN_NAV: NavItem[] = [
+  { label: 'Dashboard', path: '/superadmin/dashboard' },
+  { label: 'Users', path: '/superadmin/users' },
+  { label: 'Roles', path: '/superadmin/roles' },
+  { label: 'Permissions', path: '/superadmin/permissions' },
+  { label: 'Boardrooms', path: '/superadmin/boardrooms' },
+  { label: 'Amenities', path: '/superadmin/amenities' },
+  { label: 'Bookings', path: '/superadmin/bookings' },
+  { label: 'Calendar', path: '/superadmin/calendar' },
+  { label: 'Settings', path: '/superadmin/settings' },
+  { label: 'Audit Logs', path: '/superadmin/audit-logs' },
+  { label: 'Notifications', path: '/superadmin/notifications' }
+];
 
 const ADMIN_NAV: NavItem[] = [
   { label: 'Dashboard', path: '/admin/dashboard' },
@@ -38,6 +62,77 @@ export const routes: Routes = [
       import('./features/auth/pages/login/login.page').then((m) => m.LoginPage)
   },
   { path: 'register', redirectTo: 'login', pathMatch: 'full' },
+  {
+    path: 'superadmin',
+    canActivate: [superAdminGuard],
+    data: { brand: 'Super Admin Portal', navItems: SUPER_ADMIN_NAV },
+    loadComponent: () =>
+      import('./core/layouts/shell/shell.component').then((m) => m.ShellComponent),
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
+      {
+        path: 'dashboard',
+        loadComponent: () =>
+          import('./features/dashboard/pages/dashboard.page').then((m) => m.DashboardPage)
+      },
+      {
+        path: 'users',
+        loadComponent: () =>
+          import('./features/users/pages/users.page').then((m) => m.UsersPage)
+      },
+      {
+        path: 'roles',
+        loadComponent: () =>
+          import('./features/roles/pages/roles.page').then((m) => m.RolesPage)
+      },
+      {
+        path: 'permissions',
+        loadComponent: () =>
+          import('./features/permissions/pages/permissions.page').then((m) => m.PermissionsPage)
+      },
+      {
+        path: 'boardrooms',
+        loadComponent: () =>
+          import('./features/boardrooms/pages/admin-boardrooms.page').then(
+            (m) => m.AdminBoardroomsPage
+          )
+      },
+      {
+        path: 'amenities',
+        loadComponent: () =>
+          import('./features/boardrooms/pages/admin-amenities.page').then(
+            (m) => m.AdminAmenitiesPage
+          )
+      },
+      {
+        path: 'bookings',
+        loadComponent: () =>
+          import('./features/bookings/pages/bookings.page').then((m) => m.BookingsPage)
+      },
+      {
+        path: 'calendar',
+        loadComponent: () =>
+          import('./features/calendar/pages/calendar.page').then((m) => m.CalendarPage)
+      },
+      {
+        path: 'settings',
+        loadComponent: () =>
+          import('./features/settings/pages/settings.page').then((m) => m.SettingsPage)
+      },
+      {
+        path: 'audit-logs',
+        loadComponent: () =>
+          import('./features/audit-logs/pages/audit-logs.page').then((m) => m.AuditLogsPage)
+      },
+      {
+        path: 'notifications',
+        loadComponent: () =>
+          import('./features/notifications/pages/notifications.page').then(
+            (m) => m.NotificationsPage
+          )
+      }
+    ]
+  },
   {
     path: 'admin',
     canActivate: [adminGuard],
@@ -103,6 +198,49 @@ export const routes: Routes = [
         path: 'audit-logs',
         loadComponent: () =>
           import('./features/audit-logs/pages/audit-logs.page').then((m) => m.AuditLogsPage)
+      }
+    ]
+  },
+  {
+    path: 'facilities',
+    canActivate: [facilitiesGuard],
+    data: { brand: 'Facilities Portal', navItems: FACILITIES_NAV },
+    loadComponent: () =>
+      import('./core/layouts/shell/shell.component').then((m) => m.ShellComponent),
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
+      {
+        path: 'dashboard',
+        loadComponent: () =>
+          import('./features/dashboard/pages/dashboard.page').then((m) => m.DashboardPage)
+      },
+      {
+        path: 'bookings',
+        loadComponent: () =>
+          import('./features/facilities/pages/facilities-bookings.page').then(
+            (m) => m.FacilitiesBookingsPage
+          )
+      },
+      {
+        path: 'equipment',
+        loadComponent: () =>
+          import('./features/facilities/pages/room-equipment.page').then(
+            (m) => m.RoomEquipmentPage
+          )
+      },
+      {
+        path: 'room-blocks',
+        loadComponent: () =>
+          import('./features/boardroom-blocks/pages/boardroom-blocks.page').then(
+            (m) => m.BoardroomBlocksPage
+          )
+      },
+      {
+        path: 'notifications',
+        loadComponent: () =>
+          import('./features/notifications/pages/notifications.page').then(
+            (m) => m.NotificationsPage
+          )
       }
     ]
   },

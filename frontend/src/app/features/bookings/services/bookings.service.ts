@@ -42,6 +42,10 @@ export class BookingsService {
     return this.http.post<Booking>(`${this.url}/${id}/approve`, {});
   }
 
+  complete(id: string): Observable<Booking> {
+    return this.http.post<Booking>(`${this.url}/${id}/complete`, {});
+  }
+
   cancel(id: string): Observable<Booking> {
     return this.http.post<Booking>(`${this.url}/${id}/cancel`, {});
   }

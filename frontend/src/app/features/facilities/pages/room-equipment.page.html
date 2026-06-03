@@ -1,0 +1,55 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>Room Equipment Status</h1>
+      <p class="lede">Review and update the equipment readiness of each boardroom.</p>
+    </div>
+    <button class="btn btn-ghost" (click)="refresh()" [disabled]="loading()">Refresh</button>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert-error">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <p class="loading">Loading rooms…</p>
+  } @else if (boardrooms().length === 0) {
+    <div class="empty">No boardrooms found.</div>
+  } @else {
+    <div class="grid">
+      @for (room of boardrooms(); track room.id) {
+        <div class="card" [class.busy]="busyId() === room.id">
+          <div class="card-head">
+            <h3>{{ room.name }}</h3>
+            <span class="status-badge status-{{ statusCss(room.equipmentStatus) }}">
+              {{ statusLabel(room.equipmentStatus) }}
+            </span>
+          </div>
+          @if (room.location) {
+            <p class="meta">{{ room.location }}</p>
+          }
+          <p class="capacity">{{ room.capacity }} seats</p>
+          @if (room.amenities.length > 0) {
+            <div class="amenities">
+              @for (a of room.amenities; track a.id) {
+                <span class="chip">{{ a.name }}</span>
+              }
+            </div>
+          }
+          <div class="actions">
+            @for (s of statusOptions; track s) {
+              <button
+                class="status-btn status-btn-{{ statusCss(s) }}"
+                [class.active]="room.equipmentStatus === s"
+                [disabled]="busyId() === room.id"
+                (click)="updateStatus(room, s)"
+              >
+                {{ statusLabel(s) }}
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

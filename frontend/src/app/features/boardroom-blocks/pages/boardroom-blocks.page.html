@@ -58,7 +58,7 @@
 
   <div class="list">
     @if (loading()) {
-      <div class="empty">Loading…</div>
+      <app-spinner label="Loading…" />
     } @else if (blocks().length === 0) {
       <div class="empty">No active blocks.</div>
     } @else {

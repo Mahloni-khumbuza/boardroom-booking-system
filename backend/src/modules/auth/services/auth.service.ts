@@ -24,7 +24,11 @@ export class AuthService {
     private readonly auditLogs: AuditLogsService,
   ) {}
 
-  async login(dto: LoginDto): Promise<LoginResponseDto> {
+  async login(
+    dto: LoginDto,
+    ipAddress?: string | null,
+    userAgent?: string | null,
+  ): Promise<LoginResponseDto> {
     const user = await this.usersService.findByEmail(dto.email);
     if (!user || !user.isActive) {
       throw new UnauthorizedException('Invalid email or password');
@@ -41,6 +45,8 @@ export class AuthService {
       entityId: user.id,
       actorId: user.id,
       metadata: { email: user.email, role: user.role?.name ?? null },
+      ipAddress,
+      userAgent,
     });
 
     return this.issueToken(user);

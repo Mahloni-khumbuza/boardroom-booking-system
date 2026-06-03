@@ -2,44 +2,50 @@
   <header class="head">
     <div>
       <h1>Audit Logs</h1>
-      <p class="lede">Append-only record of system actions. Most recent first.</p>
+      <p class="lede">Append-only record of all system actions. Most recent first.</p>
+    </div>
+    <div class="head-right">
+      @if (total() > 0) {
+        <span class="total-badge">{{ total() }} total</span>
+      }
+      <button type="button" class="btn ghost small" (click)="refresh()" [disabled]="loading()">
+        Refresh
+      </button>
     </div>
   </header>
 
   <div class="filters">
     <label class="field">
-      <span>Entity</span>
-      <input
-        type="text"
-        placeholder="user, booking…"
-        [ngModel]="filterEntity()"
-        (ngModelChange)="filterEntity.set($event)"
-      />
+      <span>Entity type</span>
+      <select [ngModel]="filterEntity()" (ngModelChange)="filterEntity.set($event)">
+        <option value="">All entities</option>
+        <option value="user">User</option>
+        <option value="booking">Booking</option>
+        <option value="boardroom">Boardroom</option>
+        <option value="amenity">Amenity</option>
+        <option value="boardroom-block">Boardroom Block</option>
+        <option value="notification">Notification</option>
+        <option value="system-setting">System Setting</option>
+        <option value="role">Role</option>
+        <option value="permission">Permission</option>
+      </select>
     </label>
     <label class="field">
       <span>Action contains</span>
       <input
         type="text"
-        placeholder="created, login…"
+        placeholder="created, login, cancelled…"
         [ngModel]="filterAction()"
         (ngModelChange)="filterAction.set($event)"
       />
     </label>
     <label class="field">
       <span>From</span>
-      <input
-        type="datetime-local"
-        [ngModel]="filterFrom()"
-        (ngModelChange)="filterFrom.set($event)"
-      />
+      <input type="datetime-local" [ngModel]="filterFrom()" (ngModelChange)="filterFrom.set($event)" />
     </label>
     <label class="field">
       <span>To</span>
-      <input
-        type="datetime-local"
-        [ngModel]="filterTo()"
-        (ngModelChange)="filterTo.set($event)"
-      />
+      <input type="datetime-local" [ngModel]="filterTo()" (ngModelChange)="filterTo.set($event)" />
     </label>
     <div class="filter-actions">
       <button type="button" class="btn ghost" (click)="clearFilters()">Clear</button>
@@ -51,43 +57,64 @@
     <div class="banner error">{{ err }}</div>
   }
 
-  <div class="list">
+  <div class="card">
     @if (loading()) {
-      <div class="empty">Loading…</div>
+      <div class="empty">Loading audit logs…</div>
     } @else if (items().length === 0) {
       <div class="empty">No audit log entries match these filters.</div>
     } @else {
-      <table>
+      <table class="table">
         <thead>
           <tr>
             <th>When</th>
             <th>Actor</th>
+            <th>Module</th>
             <th>Action</th>
             <th>Entity</th>
-            <th>Entity ID</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
           @for (log of items(); track log.id) {
-            <tr [class.expanded]="expandedId() === log.id">
-              <td class="muted small">{{ log.createdAt | date: 'medium' }}</td>
-              <td>{{ actorLabel(log) }}</td>
-              <td><code>{{ log.action }}</code></td>
-              <td class="muted">{{ log.entity }}</td>
-              <td class="muted small mono">{{ log.entityId || '—' }}</td>
-              <td class="actions">
+            <tr [class.expanded]="expandedId() === log.id" (click)="toggleExpand(log.id)" class="log-row">
+              <td class="when">
+                <span class="date">{{ log.createdAt | date:'dd MMM yyyy' }}</span>
+                <span class="time muted">{{ log.createdAt | date:'HH:mm:ss' }}</span>
+              </td>
+              <td class="actor">
+                <span class="actor-name">{{ actorLabel(log) }}</span>
+              </td>
+              <td>
+                <span class="module-badge module-{{ moduleOf(log.action) }}">{{ moduleOf(log.action) }}</span>
+              </td>
+              <td>
+                <span class="action-pill action-{{ actionTypeOf(log.action) }}">{{ verbOf(log.action) }}</span>
+              </td>
+              <td>
+                <span class="entity-badge">{{ log.entity }}</span>
+                @if (entityLabel(log); as label) {
+                  <span class="entity-id muted">{{ label }}</span>
+                } @else if (log.entityId) {
+                  <span class="entity-id muted">{{ log.entityId | slice:0:8 }}…</span>
+                }
+              </td>
+              <td class="expand-col">
                 @if (log.metadata) {
-                  <button type="button" class="link" (click)="toggleExpand(log.id)">
-                    {{ expandedId() === log.id ? 'Hide' : 'Details' }}
-                  </button>
+                  <span class="expand-icon">{{ expandedId() === log.id ? '▲' : '▼' }}</span>
                 }
               </td>
             </tr>
             @if (expandedId() === log.id && log.metadata) {
               <tr class="detail-row">
                 <td colspan="6">
-                  <pre>{{ metadataJson(log.metadata) }}</pre>
+                  <div class="detail-grid">
+                    @for (entry of metadataEntries(log.metadata); track entry.key) {
+                      <div class="detail-item">
+                        <span class="detail-key">{{ entry.key }}</span>
+                        <span class="detail-val">{{ entry.value }}</span>
+                      </div>
+                    }
+                  </div>
                 </td>
               </tr>
             }
@@ -100,22 +127,8 @@
           Showing {{ offset() + 1 }}–{{ offset() + items().length }} of {{ total() }}
         </span>
         <div class="pager-buttons">
-          <button
-            type="button"
-            class="btn ghost small"
-            [disabled]="offset() === 0"
-            (click)="prevPage()"
-          >
-            ← Previous
-          </button>
-          <button
-            type="button"
-            class="btn ghost small"
-            [disabled]="offset() + limit() >= total()"
-            (click)="nextPage()"
-          >
-            Next →
-          </button>
+          <button class="btn ghost small" [disabled]="offset() === 0" (click)="prevPage()">← Prev</button>
+          <button class="btn ghost small" [disabled]="offset() + limit() >= total()" (click)="nextPage()">Next →</button>
         </div>
       </div>
     }

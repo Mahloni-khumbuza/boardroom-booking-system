@@ -24,6 +24,12 @@
         <div class="error-banner" role="alert">{{ err }}</div>
       }
 
+      <div class="form-footer">
+        <a class="forgot-link" href="mailto:admin@company.com?subject=Password%20Reset%20Request">
+          Forgot password?
+        </a>
+      </div>
+
       <button type="submit" [disabled]="loading()">
         {{ loading() ? 'Signing in…' : 'Sign in' }}
       </button>

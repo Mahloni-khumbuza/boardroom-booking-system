@@ -14,6 +14,15 @@ export class UserResponseDto {
   @ApiProperty({ example: 'Khumbuza' })
   lastName: string;
 
+  @ApiProperty({ nullable: true })
+  phoneNumber: string | null;
+
+  @ApiProperty({ nullable: true })
+  department: string | null;
+
+  @ApiProperty({ nullable: true })
+  jobTitle: string | null;
+
   @ApiProperty({ example: true })
   isActive: boolean;
 

@@ -1,5 +1,5 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Permissions } from '../../../shared/decorators/permissions.decorator';
 import { PermissionsGuard } from '../../../shared/guards/permissions.guard';
@@ -16,6 +16,7 @@ export class AuditLogsController {
 
   @Get()
   @Permissions('audit-logs:read')
+  @ApiOperation({ summary: 'List audit log entries', operationId: 'listAuditLogs' })
   @ApiOkResponse({ type: PaginatedAuditLogResponseDto })
   async findAll(@Query() query: AuditLogQueryDto): Promise<PaginatedAuditLogResponseDto> {
     const result = await this.service.findAll(query);

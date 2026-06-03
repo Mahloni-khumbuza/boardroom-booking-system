@@ -28,17 +28,12 @@ export class AuditLogsPage {
   readonly filterFrom = signal('');
   readonly filterTo = signal('');
 
-  constructor() {
-    this.refresh();
-  }
+  constructor() { this.refresh(); }
 
   refresh(): void {
     this.loading.set(true);
     this.error.set(null);
-    const query: AuditLogQuery = {
-      limit: this.limit(),
-      offset: this.offset()
-    };
+    const query: AuditLogQuery = { limit: this.limit(), offset: this.offset() };
     if (this.filterEntity()) query.entity = this.filterEntity();
     if (this.filterFrom()) query.from = new Date(this.filterFrom()).toISOString();
     if (this.filterTo()) query.to = new Date(this.filterTo()).toISOString();
@@ -54,17 +49,11 @@ export class AuditLogsPage {
         this.total.set(res.total);
         this.loading.set(false);
       },
-      error: (err) => {
-        this.error.set(this.errorMessage(err));
-        this.loading.set(false);
-      }
+      error: (err) => { this.error.set(this.errorMessage(err)); this.loading.set(false); }
     });
   }
 
-  applyFilters(): void {
-    this.offset.set(0);
-    this.refresh();
-  }
+  applyFilters(): void { this.offset.set(0); this.refresh(); }
 
   clearFilters(): void {
     this.filterEntity.set('');
@@ -88,7 +77,21 @@ export class AuditLogsPage {
   }
 
   toggleExpand(id: string): void {
-    this.expandedId.update((current) => (current === id ? null : id));
+    this.expandedId.update((c) => (c === id ? null : id));
+  }
+
+  // action format is "module.verb" e.g. "booking.created", "auth.login"
+  moduleOf(action: string): string { return action.split('.')[0] ?? action; }
+  verbOf(action: string): string { return action.split('.').slice(1).join('.') || action; }
+
+  // maps verb to a colour category for the pill
+  actionTypeOf(action: string): string {
+    const verb = this.verbOf(action).toLowerCase();
+    if (verb.includes('create') || verb.includes('login') || verb.includes('approve')) return 'create';
+    if (verb.includes('update') || verb.includes('reconcil')) return 'update';
+    if (verb.includes('delete') || verb.includes('cancel') || verb.includes('remove')) return 'delete';
+    if (verb.includes('login') || verb.includes('logout')) return 'auth';
+    return 'default';
   }
 
   actorLabel(log: AuditLog): string {
@@ -97,9 +100,27 @@ export class AuditLogsPage {
     return name || log.actor.email;
   }
 
-  metadataJson(metadata: Record<string, unknown> | null): string {
-    if (!metadata) return '';
-    return JSON.stringify(metadata, null, 2);
+  entityLabel(log: AuditLog): string | null {
+    const m = log.metadata as Record<string, unknown> | null;
+    if (!m) return null;
+    if (log.entity === 'user') return (m['email'] as string) ?? null;
+    if (log.entity === 'booking') return (m['reference'] as string) ?? (m['boardroomName'] as string) ?? null;
+    if (log.entity === 'boardroom') return (m['name'] as string) ?? null;
+    if (log.entity === 'amenity') return (m['name'] as string) ?? null;
+    if (log.entity === 'role') return (m['name'] as string) ?? null;
+    if (log.entity === 'permission') return (m['name'] as string) ?? null;
+    if (log.entity === 'boardroom-block') return (m['boardroomName'] as string) ?? null;
+    if (log.entity === 'notification') return (m['title'] as string) ?? null;
+    if (log.entity === 'system-setting') return (m['key'] as string) ?? null;
+    return null;
+  }
+
+  metadataEntries(metadata: Record<string, unknown> | null): { key: string; value: string }[] {
+    if (!metadata) return [];
+    return Object.entries(metadata).map(([key, value]) => ({
+      key,
+      value: typeof value === 'object' ? JSON.stringify(value) : String(value ?? '—')
+    }));
   }
 
   private errorMessage(err: unknown): string {

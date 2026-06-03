@@ -2,6 +2,8 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
   ArrayUnique,
   IsArray,
+  IsBoolean,
+  IsEnum,
   IsISO8601,
   IsInt,
   IsNotEmpty,
@@ -13,6 +15,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
+import { MeetingType } from '../entities/booking.entity';
 
 export class CreateBookingDto {
   @ApiProperty({ example: 'Q2 Strategy Review' })
@@ -45,6 +48,33 @@ export class CreateBookingDto {
   @Min(1)
   @Max(1000)
   attendeeCount: number;
+
+  @ApiProperty({ enum: MeetingType, required: false, default: MeetingType.Internal })
+  @IsOptional()
+  @IsEnum(MeetingType)
+  meetingType?: MeetingType;
+
+  @ApiProperty({ required: false, default: false })
+  @IsOptional()
+  @IsBoolean()
+  requiresCatering?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  cateringNotes?: string;
+
+  @ApiProperty({ required: false, default: false })
+  @IsOptional()
+  @IsBoolean()
+  requiresSetup?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  setupNotes?: string;
 
   @ApiProperty({
     type: [String],

@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { AmenityResponseDto } from '../../amenities/dto/amenity-response.dto';
-import { BookingStatus } from '../entities/booking.entity';
+import { BookingStatus, MeetingType } from '../entities/booking.entity';
 
 export class BookingBoardroomDto {
   @ApiProperty()
@@ -52,11 +52,32 @@ export class BookingResponseDto {
   @ApiProperty({ enum: BookingStatus })
   status: BookingStatus;
 
+  @ApiProperty({ enum: MeetingType })
+  meetingType: MeetingType;
+
+  @ApiProperty()
+  requiresCatering: boolean;
+
+  @ApiProperty({ nullable: true })
+  cateringNotes: string | null;
+
+  @ApiProperty()
+  requiresSetup: boolean;
+
+  @ApiProperty({ nullable: true })
+  setupNotes: string | null;
+
+  @ApiProperty({ nullable: true })
+  cancellationReason: string | null;
+
   @ApiProperty({ type: BookingBoardroomDto })
   boardroom: BookingBoardroomDto;
 
   @ApiProperty({ type: BookingActorDto, nullable: true })
   bookedBy: BookingActorDto | null;
+
+  @ApiProperty({ type: BookingActorDto, nullable: true })
+  approvedBy: BookingActorDto | null;
 
   @ApiProperty({ type: [AmenityResponseDto] })
   requestedAmenities: AmenityResponseDto[];

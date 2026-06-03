@@ -14,10 +14,20 @@ export class BoardroomsService {
   private readonly http = inject(HttpClient);
   private readonly url = `${environment.apiBaseUrl}/boardrooms`;
 
-  list(activeOnly = false): Observable<Boardroom[]> {
+  list(options: {
+    activeOnly?: boolean;
+    minCapacity?: number | null;
+    location?: string;
+    amenityIds?: string[];
+  } = {}): Observable<Boardroom[]> {
     let params = new HttpParams();
-    if (activeOnly) {
-      params = params.set('activeOnly', 'true');
+    if (options.activeOnly) params = params.set('activeOnly', 'true');
+    if (options.minCapacity != null) params = params.set('minCapacity', String(options.minCapacity));
+    if (options.location?.trim()) params = params.set('location', options.location.trim());
+    if (options.amenityIds?.length) {
+      for (const id of options.amenityIds) {
+        params = params.append('amenityIds', id);
+      }
     }
     return this.http.get<Boardroom[]>(this.url, { params });
   }
@@ -36,5 +46,9 @@ export class BoardroomsService {
 
   remove(id: string): Observable<void> {
     return this.http.delete<void>(`${this.url}/${id}`);
+  }
+
+  updateEquipmentStatus(id: string, equipmentStatus: string): Observable<Boardroom> {
+    return this.http.patch<Boardroom>(`${this.url}/${id}/equipment-status`, { equipmentStatus });
   }
 }

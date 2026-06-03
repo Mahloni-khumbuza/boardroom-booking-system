@@ -1,185 +1,153 @@
-.page {
-  display: flex;
-  flex-direction: column;
+.page { display: flex; flex-direction: column; gap: 16px; }
+
+.back { color: #4f46e5; text-decoration: none; font-size: 0.85rem; align-self: flex-start; }
+.back:hover { text-decoration: underline; }
+
+.banner { padding: 12px 14px; border-radius: 8px; font-size: 0.9rem; }
+.banner.error { background: #fee2e2; color: #991b1b; }
+
+.hero-image {
+  border-radius: 12px;
+  overflow: hidden;
+  max-height: 280px;
+}
+.hero-image img { width: 100%; height: 280px; object-fit: cover; }
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
+  align-items: start;
 }
 
-.back {
-  color: #2563eb;
-  text-decoration: none;
-  font-size: 0.88rem;
-  align-self: flex-start;
+@media (max-width: 768px) {
+  .layout { grid-template-columns: 1fr; }
 }
 
-.back:hover {
-  text-decoration: underline;
-}
-
-.detail {
+.card {
   background: #ffffff;
   border-radius: 12px;
-  padding: 28px;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(15,23,42,0.04);
 }
 
-.head {
+.room-header {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
-  gap: 16px;
-  border-bottom: 1px solid #f1f5f9;
-  padding-bottom: 14px;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
-.head h1 {
-  margin: 0;
-  color: #0f172a;
-  font-size: 1.5rem;
-}
+.room-header h1 { margin: 0; font-size: 1.4rem; color: #0f172a; }
 
-.capacity {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #2563eb;
-  background: #eff6ff;
-  padding: 6px 12px;
+.capacity-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
   border-radius: 999px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 0.82rem;
+  font-weight: 700;
   white-space: nowrap;
 }
 
 .meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   color: #475569;
-  font-size: 0.92rem;
-}
-
-.desc {
-  margin: 0;
-  color: #334155;
-  line-height: 1.5;
-}
-
-.amenities h2 {
-  margin: 0 0 8px;
-  font-size: 1rem;
-  color: #0f172a;
-}
-
-.amenity-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.amenity-list li {
-  font-size: 0.9rem;
-  color: #334155;
-}
-
-.muted {
-  color: #64748b;
-}
-
-.empty {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 48px;
-  text-align: center;
-  color: #94a3b8;
-}
-
-.banner {
-  padding: 12px 14px;
-  border-radius: 8px;
-  font-size: 0.9rem;
-}
-
-.banner.error {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.availability-title {
-  margin: 0;
-  font-size: 1.05rem;
-  color: #0f172a;
-}
-
-.agenda {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin-top: 10px;
-}
-
-.day {
-  border-top: 1px solid #f1f5f9;
-  padding-top: 10px;
-}
-
-.day:first-child {
-  border-top: none;
-  padding-top: 0;
-}
-
-.day-head {
-  font-weight: 600;
-  color: #334155;
-  font-size: 0.9rem;
-  margin-bottom: 6px;
-}
-
-.free {
-  margin: 4px 0;
-  color: #10b981;
   font-size: 0.88rem;
-  font-style: italic;
+  margin: 4px 0 0;
 }
 
-.entries {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-}
 
-.entry {
-  display: grid;
-  grid-template-columns: 160px 1fr;
-  gap: 12px;
-  padding: 6px 0;
-}
+.desc { color: #334155; line-height: 1.6; font-size: 0.9rem; margin: 12px 0; }
 
-.time {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
-  font-size: 0.85rem;
-  color: #1e40af;
-  white-space: nowrap;
-}
-
-.dash {
-  color: #94a3b8;
-}
-
-.body {
-  font-size: 0.9rem;
-  color: #0f172a;
+.info-row {
   display: flex;
   align-items: center;
   gap: 8px;
+  font-size: 0.875rem;
+  color: #475569;
+  margin-bottom: 8px;
 }
 
-.badge.pending {
-  background: #fef3c7;
-  color: #92400e;
-  font-size: 0.7rem;
-  padding: 2px 7px;
+.info-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  min-width: 56px;
+}
+
+.meta-dot { color: #94a3b8; }
+
+.info-icon { font-size: 16px; width: 16px; height: 16px; color: #94a3b8; }
+
+.amenities-section { margin-top: 16px; border-top: 1px solid #f1f5f9; padding-top: 14px; }
+.amenities-section h2 { margin: 0 0 10px; font-size: 0.95rem; color: #0f172a; }
+
+.amenity-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.amenity-chip {
+  padding: 4px 10px;
   border-radius: 999px;
+  background: #ede9fe;
+  color: #5b21b6;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: help;
+}
+
+.book-action { margin-top: 20px; padding-top: 16px; border-top: 1px solid #f1f5f9; }
+
+.book-btn {
+  width: 100%;
+  padding: 11px 20px;
+  background: #4f46e5;
+  color: #fff;
+  border: none;
+  border-radius: 9px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+.book-btn:hover { background: #4338ca; }
+
+.muted { color: #94a3b8; font-size: 0.85rem; }
+
+/* Availability */
+.avail-title { margin: 0 0 14px; font-size: 1rem; color: #0f172a; }
+
+.agenda { display: flex; flex-direction: column; gap: 12px; }
+
+.day { border-top: 1px solid #f1f5f9; padding-top: 10px; }
+.day:first-child { border-top: none; padding-top: 0; }
+.day.has-bookings .day-head { color: #0f172a; }
+
+.day-head { font-weight: 600; color: #334155; font-size: 0.88rem; margin-bottom: 6px; }
+
+.free { margin: 2px 0; color: #16a34a; font-size: 0.84rem; font-weight: 500; }
+
+.entries { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; }
+
+.entry { display: grid; grid-template-columns: 100px 1fr; gap: 8px; align-items: baseline; }
+
+.time { font-family: ui-monospace, monospace; font-size: 0.8rem; color: #1e40af; }
+
+.entry-body { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: #0f172a; }
+
+.status {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.7rem;
   font-weight: 600;
 }
+.status-pending   { background: #fef3c7; color: #92400e; }
+.status-confirmed { background: #dcfce7; color: #166534; }
+.status-completed { background: #e0e7ff; color: #3730a3; }

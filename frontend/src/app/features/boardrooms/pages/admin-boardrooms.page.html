@@ -1,115 +1,137 @@
 <section class="page">
-  <header class="head">
+
+  <header class="page-head">
     <div>
       <h1>Boardrooms</h1>
-      <p class="lede">Create, update and deactivate the rooms employees can book.</p>
+      <p class="lede">Create, update and manage the rooms employees can browse and book.</p>
     </div>
-    <button type="button" class="btn primary" (click)="startCreate()">+ New boardroom</button>
+    <button type="button" class="btn-new" (click)="startCreate()">+ New Boardroom</button>
   </header>
 
   @if (error(); as err) {
-    <div class="banner error">{{ err }}</div>
+    <div class="alert-error">{{ err }}</div>
   }
 
   <div class="layout">
-    <div class="list">
+
+    <!-- Left: boardroom list -->
+    <div class="list-panel">
       @if (loading()) {
-        <div class="empty">Loading…</div>
+        <app-spinner label="Loading boardrooms…" />
       } @else if (boardrooms().length === 0) {
-        <div class="empty">No boardrooms yet.</div>
+        <div class="empty-state">
+          <div class="empty-icon">—</div>
+          <p class="empty-title">No boardrooms yet</p>
+          <p class="empty-sub">Add your first boardroom using the form on the right.</p>
+        </div>
       } @else {
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Capacity</th>
-              <th>Location</th>
-              <th>Amenities</th>
-              <th>Status</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (r of boardrooms(); track r.id) {
-              <tr [class.active]="editingId() === r.id">
-                <td>
-                  <strong>{{ r.name }}</strong>
+        <div class="room-list">
+          @for (r of boardrooms(); track r.id) {
+            <div class="room-card" [class.editing]="editingId() === r.id">
+
+              <div class="room-card-main">
+                <div class="room-avatar">{{ r.name[0] }}</div>
+                <div class="room-info">
+                  <div class="room-name">{{ r.name }}</div>
+                  @if (r.location) {
+                    <div class="room-meta">{{ r.location }}</div>
+                  }
                   @if (r.description) {
-                    <div class="muted small">{{ r.description }}</div>
+                    <div class="room-desc">{{ r.description }}</div>
                   }
-                </td>
-                <td>{{ r.capacity }}</td>
-                <td class="muted">{{ r.location || '—' }}</td>
-                <td class="muted small">
-                  @if (r.amenities.length === 0) {
-                    —
-                  } @else {
-                    @for (a of r.amenities; track a.id; let last = $last) {
-                      {{ a.name }}{{ last ? '' : ', ' }}
-                    }
-                  }
-                </td>
-                <td>
-                  <span class="badge" [class.on]="r.isActive" [class.off]="!r.isActive">
+                </div>
+                <div class="room-stats">
+                  <div class="room-stat">
+                    <span class="stat-num">{{ r.capacity }}</span>
+                    <span class="stat-lbl">seats</span>
+                  </div>
+                  <div class="room-stat">
+                    <span class="stat-num">{{ r.amenities.length }}</span>
+                    <span class="stat-lbl">amenities</span>
+                  </div>
+                </div>
+                <div class="room-status-wrap">
+                  <span class="status-dot" [class.active]="r.isActive" [class.inactive]="!r.isActive">
                     {{ r.isActive ? 'Active' : 'Inactive' }}
                   </span>
-                </td>
-                <td class="actions">
-                  <button type="button" class="link" (click)="startEdit(r)">Edit</button>
-                  <button type="button" class="link danger" (click)="remove(r)">Delete</button>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
+                </div>
+                <div class="room-actions">
+                  <button class="icon-btn" title="Edit" (click)="startEdit(r)">✎</button>
+                  <button class="icon-btn icon-btn-danger" title="Delete" (click)="remove(r)">✕</button>
+                </div>
+              </div>
+
+              @if (r.amenities.length > 0) {
+                <div class="room-amenities">
+                  @for (a of r.amenities; track a.id) {
+                    <span class="amenity-tag">{{ a.name }}</span>
+                  }
+                </div>
+              }
+
+            </div>
+          }
+        </div>
       }
     </div>
 
-    <aside class="form-card">
-      <h2>{{ editingId() ? 'Edit boardroom' : 'New boardroom' }}</h2>
+    <!-- Right: form panel -->
+    <aside class="form-panel">
+      <div class="form-panel-header">
+        <h2>{{ editingId() ? 'Edit Boardroom' : 'New Boardroom' }}</h2>
+        @if (editingId()) {
+          <span class="editing-badge">Editing</span>
+        }
+      </div>
+
       <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-        <label class="field">
-          <span>Name</span>
-          <input type="text" formControlName="name" maxlength="80" />
+
+        <label class="f-field">
+          <span class="f-label">Name *</span>
+          <input type="text" formControlName="name" maxlength="80" placeholder="e.g. Maple Boardroom" />
           @if (form.controls.name.touched && form.controls.name.invalid) {
-            <small class="error">Name is required (2–80 characters).</small>
+            <span class="f-error">Name is required (2–80 characters).</span>
           }
         </label>
 
-        <label class="field">
-          <span>Description</span>
-          <textarea formControlName="description" rows="2" maxlength="1000"></textarea>
+        <label class="f-field">
+          <span class="f-label">Description <span class="f-optional">(optional)</span></span>
+          <textarea formControlName="description" rows="2" maxlength="1000"
+            placeholder="Features, view, equipment notes…"></textarea>
         </label>
 
-        <div class="row">
-          <label class="field">
-            <span>Capacity</span>
-            <input type="number" formControlName="capacity" min="1" max="1000" />
+        <div class="f-row">
+          <label class="f-field">
+            <span class="f-label">Capacity *</span>
+            <input type="number" formControlName="capacity" min="1" max="1000" placeholder="12" />
           </label>
-          <label class="field">
-            <span>Location</span>
-            <input type="text" formControlName="location" maxlength="255" placeholder="Floor / wing" />
+          <label class="f-field">
+            <span class="f-label">Location</span>
+            <input type="text" formControlName="location" maxlength="255" placeholder="Floor 3 / East Wing" />
           </label>
         </div>
 
-        <label class="check">
+        <label class="f-toggle">
           <input type="checkbox" formControlName="isActive" />
-          <span>Active (visible to employees)</span>
+          <div class="f-toggle-text">
+            <strong>Active</strong>
+            <span>Visible and bookable by employees</span>
+          </div>
         </label>
 
-        <div class="field">
-          <span>Amenities</span>
+        <div class="f-field">
+          <span class="f-label">Amenities</span>
           @if (amenities().length === 0) {
-            <small class="muted">No amenities defined yet. Create some on the Amenities page first.</small>
+            <div class="no-amenities">
+              No amenities defined yet.
+              <a [routerLink]="amenitiesPath">Create some on the Amenities page</a> first.
+            </div>
           } @else {
             <div class="chip-list">
               @for (a of amenities(); track a.id) {
-                <button
-                  type="button"
-                  class="chip"
+                <button type="button" class="chip"
                   [class.selected]="isAmenitySelected(a.id)"
-                  (click)="toggleAmenity(a.id)"
-                >
+                  (click)="toggleAmenity(a.id)">
                   {{ a.name }}
                 </button>
               }
@@ -117,15 +139,16 @@
           }
         </div>
 
-        <div class="form-actions">
+        <div class="f-actions">
           @if (editingId()) {
-            <button type="button" class="btn ghost" (click)="cancel()">Cancel</button>
+            <button type="button" class="btn-cancel" (click)="cancel()">Cancel</button>
           }
-          <button type="submit" class="btn primary" [disabled]="saving()">
-            {{ saving() ? 'Saving…' : editingId() ? 'Save changes' : 'Create boardroom' }}
+          <button type="submit" class="btn-save" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : (editingId() ? 'Save changes' : 'Create boardroom') }}
           </button>
         </div>
       </form>
     </aside>
+
   </div>
 </section>

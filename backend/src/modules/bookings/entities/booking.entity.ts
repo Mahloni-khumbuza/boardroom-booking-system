@@ -21,6 +21,15 @@ export enum BookingStatus {
   Completed = 'completed',
 }
 
+export enum MeetingType {
+  Internal = 'internal',
+  External = 'external',
+  Interview = 'interview',
+  Training = 'training',
+  Board = 'board',
+  Other = 'other',
+}
+
 @Entity({ name: 'bookings' })
 @Index(['boardroomId', 'startTime'])
 export class Booking {
@@ -49,6 +58,29 @@ export class Booking {
   })
   status: BookingStatus;
 
+  @Column({
+    type: 'enum',
+    enum: MeetingType,
+    name: 'meeting_type',
+    default: MeetingType.Internal,
+  })
+  meetingType: MeetingType;
+
+  @Column({ default: false, name: 'requires_catering' })
+  requiresCatering: boolean;
+
+  @Column({ type: 'text', name: 'catering_notes', nullable: true })
+  cateringNotes: string | null;
+
+  @Column({ default: false, name: 'requires_setup' })
+  requiresSetup: boolean;
+
+  @Column({ type: 'text', name: 'setup_notes', nullable: true })
+  setupNotes: string | null;
+
+  @Column({ type: 'text', name: 'cancellation_reason', nullable: true })
+  cancellationReason: string | null;
+
   @ManyToOne(() => Boardroom, (boardroom) => boardroom.bookings, {
     onDelete: 'CASCADE',
   })
@@ -64,6 +96,20 @@ export class Booking {
 
   @Column({ type: 'uuid', name: 'booked_by_id', nullable: true })
   bookedById: string | null;
+
+  @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'approved_by_id' })
+  approvedBy: User | null;
+
+  @Column({ type: 'uuid', name: 'approved_by_id', nullable: true })
+  approvedById: string | null;
+
+  @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'rejected_by_id' })
+  rejectedBy: User | null;
+
+  @Column({ type: 'uuid', name: 'rejected_by_id', nullable: true })
+  rejectedById: string | null;
 
   @ManyToMany(() => Amenity, { eager: true })
   @JoinTable({

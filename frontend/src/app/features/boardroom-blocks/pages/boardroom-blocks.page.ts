@@ -3,6 +3,9 @@ import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 
+import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
+import { DialogService } from '../../../core/services/dialog.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { Boardroom } from '../../boardrooms/models/boardroom.model';
 import { BoardroomsService } from '../../boardrooms/services/boardrooms.service';
 import { BoardroomBlock } from '../models/boardroom-block.model';
@@ -11,13 +14,15 @@ import { BoardroomBlocksService } from '../services/boardroom-blocks.service';
 @Component({
   selector: 'app-boardroom-blocks-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, SpinnerComponent],
   templateUrl: './boardroom-blocks.page.html',
   styleUrl: './boardroom-blocks.page.css'
 })
 export class BoardroomBlocksPage {
   private readonly fb = inject(FormBuilder);
   private readonly service = inject(BoardroomBlocksService);
+  private readonly dialog = inject(DialogService);
+  private readonly toast = inject(ToastService);
   private readonly boardroomsService = inject(BoardroomsService);
 
   readonly blocks = signal<BoardroomBlock[]>([]);
@@ -93,6 +98,7 @@ export class BoardroomBlocksPage {
           this.saving.set(false);
           this.showCreate.set(false);
           this.refresh();
+          this.toast.success('Room block created.');
         },
         error: (err) => {
           this.error.set(this.errorMessage(err));
@@ -102,11 +108,14 @@ export class BoardroomBlocksPage {
   }
 
   remove(block: BoardroomBlock): void {
-    if (!confirm(`Remove block on "${block.boardroom.name}"?`)) return;
-    this.service.remove(block.id).subscribe({
-      next: () => this.refresh(),
-      error: (err) => this.error.set(this.errorMessage(err))
-    });
+    this.dialog.confirm({ title: 'Remove Block', message: `Remove maintenance block on "${block.boardroom.name}"?`, confirmLabel: 'Remove', danger: true })
+      .subscribe((confirmed) => {
+        if (!confirmed) return;
+        this.service.remove(block.id).subscribe({
+          next: () => { this.refresh(); this.toast.success('Room block removed.'); },
+          error: (err) => this.error.set(this.errorMessage(err))
+        });
+      });
   }
 
   private errorMessage(err: unknown): string {

@@ -1,0 +1,69 @@
+<div class="page">
+  <div class="page-header">
+    <h1>Permissions</h1>
+    <button class="btn btn-primary" (click)="openCreate()">+ New Permission</button>
+  </div>
+
+  @if (error()) {
+    <div class="alert alert-error">{{ error() }}</div>
+  }
+
+  @if (showForm()) {
+    <div class="card form-card">
+      <h2>{{ editingId() ? 'Edit Permission' : 'New Permission' }}</h2>
+      <form [formGroup]="form" (ngSubmit)="submitForm()">
+        <div class="field">
+          <label>Key <span class="hint">(resource:action, e.g. bookings:approve)</span></label>
+          <input type="text" formControlName="name" placeholder="bookings:approve" />
+          @if (form.controls.name.invalid && form.controls.name.touched) {
+            <span class="field-error">Must match &lt;resource&gt;:&lt;action&gt; format (lowercase)</span>
+          }
+        </div>
+        <div class="field">
+          <label>Description</label>
+          <input type="text" formControlName="description" placeholder="Short description" />
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" (click)="closeForm()">Cancel</button>
+          <button type="submit" class="btn btn-primary" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : (editingId() ? 'Update' : 'Create') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+
+  @if (loading()) {
+    <p class="loading">Loading permissions…</p>
+  } @else if (permissions().length === 0) {
+    <div class="empty">No permissions defined yet.</div>
+  } @else {
+    <div class="card">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Resource</th>
+            <th>Action</th>
+            <th>Description</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of sortedPermissions(); track p.id) {
+            <tr>
+              <td><span class="resource-badge">{{ resourceOf(p.name) }}</span></td>
+              <td><code class="action-code">{{ actionOf(p.name) }}</code></td>
+              <td class="muted">{{ p.description ?? '—' }}</td>
+              <td class="actions">
+                <button class="btn btn-sm btn-ghost" (click)="openEdit(p)">Edit</button>
+                <button class="btn btn-sm btn-danger" [disabled]="busyId() === p.id" (click)="remove(p)">
+                  {{ busyId() === p.id ? '…' : 'Delete' }}
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

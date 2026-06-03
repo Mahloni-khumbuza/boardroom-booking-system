@@ -40,6 +40,7 @@ const DEFAULT_PERMISSIONS: Array<{ name: string; description: string }> = [
   { name: 'audit-logs:read', description: 'View audit logs' },
   { name: 'settings:read', description: 'View system settings' },
   { name: 'settings:write', description: 'Update system settings' },
+  { name: 'rooms:equipment', description: 'View and update room equipment status' },
 ];
 
 const DEFAULT_ROLES: SeedRoleDefinition[] = [
@@ -79,22 +80,27 @@ const DEFAULT_ROLES: SeedRoleDefinition[] = [
     ],
   },
   {
-    name: 'Manager',
-    description: 'Manages boardrooms and bookings',
+    name: 'FacilitiesManager',
+    description:
+      'Operational user responsible for room readiness. Views all bookings, blocks rooms, manages room equipment status, and receives setup, catering and maintenance notifications.',
     permissions: [
       'boardrooms:read',
-      'boardrooms:write',
+      'boardroom-blocks:read',
+      'boardroom-blocks:write',
+      'boardroom-blocks:delete',
       'bookings:read',
-      'bookings:write',
-      'bookings:delete',
       'notifications:read',
+      'notifications:write',
+      'rooms:equipment',
+      'dashboard:read',
     ],
   },
   {
-    name: 'User',
-    description: 'Standard user — can book boardrooms',
+    name: 'Employee',
+    description: 'Standard employee — can browse boardrooms and manage their own bookings.',
     permissions: [
       'boardrooms:read',
+      'amenities:read',
       'bookings:read',
       'bookings:write',
       'notifications:read',
@@ -119,16 +125,16 @@ export class SeederService implements OnApplicationBootstrap {
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
+    this.logger.log('Starting database seeding...');
     try {
       await this.seedPermissions();
       const roles = await this.seedRoles();
       await this.seedSuperAdmin(roles);
       await this.seedBookingRules();
+      this.logger.log('Database seeding complete.');
     } catch (err) {
-      this.logger.error(
-        'Database seeding failed',
-        err instanceof Error ? err.stack : String(err),
-      );
+      this.logger.error('Database seeding failed');
+      console.error(err);
     }
   }
 
@@ -148,6 +154,16 @@ export class SeederService implements OnApplicationBootstrap {
         key: 'booking.buffer_minutes',
         value: '15',
         description: 'Minimum minutes required between consecutive bookings in the same boardroom',
+      },
+      {
+        key: 'booking.min_duration_minutes',
+        value: '15',
+        description: 'Minimum booking duration in minutes',
+      },
+      {
+        key: 'booking.max_duration_minutes',
+        value: '480',
+        description: 'Maximum booking duration in minutes (480 = 8 hours)',
       },
     ];
     for (const def of defaults) {
@@ -199,6 +215,7 @@ export class SeederService implements OnApplicationBootstrap {
         role = this.rolesRepository.create({
           name: def.name,
           description: def.description,
+          isSystemRole: true,
           permissions: desiredPermissions,
         });
         role = await this.rolesRepository.save(role);
@@ -209,10 +226,12 @@ export class SeederService implements OnApplicationBootstrap {
         const added = desiredPermissions.filter((p) => !currentSet.has(p.name));
         const removed = (role.permissions ?? []).filter((p) => !desiredSet.has(p.name));
         const descriptionChanged = role.description !== def.description;
+        const systemRoleChanged = !role.isSystemRole;
 
-        if (added.length > 0 || removed.length > 0 || descriptionChanged) {
+        if (added.length > 0 || removed.length > 0 || descriptionChanged || systemRoleChanged) {
           role.permissions = desiredPermissions;
           role.description = def.description;
+          role.isSystemRole = true;
           role = await this.rolesRepository.save(role);
           this.logger.log(
             `Reconciled role "${def.name}" (+${added.length} / -${removed.length} permissions${descriptionChanged ? ', description updated' : ''})`,

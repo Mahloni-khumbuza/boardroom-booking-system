@@ -103,6 +103,7 @@ export class BoardroomBlocksService {
     return this.repo
       .createQueryBuilder('blk')
       .where('blk.boardroomId = :boardroomId', { boardroomId })
+      .andWhere('blk.isActive = true')
       .andWhere('blk.startTime < :end AND blk.endTime > :start', { start, end })
       .getOne();
   }

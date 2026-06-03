@@ -33,6 +33,9 @@ export class BoardroomBlock {
   @Column()
   reason: string;
 
+  @Column({ default: true, name: 'is_active' })
+  isActive: boolean;
+
   @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn({ name: 'created_by_id' })
   createdBy: User | null;
