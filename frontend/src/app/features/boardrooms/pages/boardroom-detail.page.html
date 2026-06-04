@@ -1,5 +1,5 @@
 <section class="page">
-  <a class="back" routerLink="/employee/boardrooms">
+  <a class="back" [routerLink]="backPath()">
     ← Back to all boardrooms
   </a>
 
@@ -55,6 +55,17 @@
           </div>
         }
 
+        @if (room.bufferTimeBeforeMinutes || room.bufferTimeAfterMinutes) {
+          <div class="info-row">
+            <span class="info-label">Buffer</span>
+            <span>
+              @if (room.bufferTimeBeforeMinutes) { {{ room.bufferTimeBeforeMinutes }} min before }
+              @if (room.bufferTimeBeforeMinutes && room.bufferTimeAfterMinutes) { · }
+              @if (room.bufferTimeAfterMinutes) { {{ room.bufferTimeAfterMinutes }} min after }
+            </span>
+          </div>
+        }
+
         <!-- Amenities -->
         <section class="amenities-section">
           <h2>Amenities</h2>
@@ -79,33 +90,64 @@
         }
       </article>
 
-      <!-- Right column: availability -->
+      <!-- Right column: availability slots -->
       <article class="card availability-card">
-        <h2 class="avail-title">Availability — next 7 days</h2>
-        <div class="agenda">
-          @for (day of days(); track day.label) {
-            <section class="day" [class.has-bookings]="day.bookings.length > 0">
-              <header class="day-head">{{ day.label }}</header>
-              @if (day.bookings.length === 0) {
-                <p class="free">Available all day</p>
-              } @else {
-                <ol class="entries">
-                  @for (b of day.bookings; track b.id) {
-                    <li class="entry">
-                      <div class="time">
-                        {{ b.startTime | date:'HH:mm' }}–{{ b.endTime | date:'HH:mm' }}
-                      </div>
-                      <div class="entry-body">
-                        <strong>{{ b.title }}</strong>
-                        <span class="status status-{{ b.status }}">{{ b.status }}</span>
-                      </div>
-                    </li>
-                  }
-                </ol>
-              }
-            </section>
-          }
+        <div class="avail-header">
+          <h2 class="avail-title">Room Availability</h2>
+
+          <!-- Date navigation -->
+          <div class="date-nav">
+            <button class="nav-btn" (click)="prevDay()" [disabled]="isToday()" title="Previous day">‹</button>
+            <input
+              class="date-input"
+              type="date"
+              [value]="selectedDate()"
+              [min]="todayString()"
+              (change)="onDateChange($any($event.target).value)"
+            />
+            <button class="nav-btn" (click)="nextDay()" title="Next day">›</button>
+          </div>
         </div>
+
+        <!-- Summary badges -->
+        @if (availability(); as avail) {
+          <div class="avail-summary">
+            <span class="badge badge-free">{{ freeCount() }} free</span>
+            <span class="badge badge-busy">{{ busyCount() }} busy</span>
+            <span class="avail-hours">{{ avail.openingTime }} – {{ avail.closingTime }}</span>
+          </div>
+        }
+
+        @if (availLoading()) {
+          <app-spinner label="Loading slots…" />
+        } @else if (availError(); as err) {
+          <div class="banner error">{{ err }}</div>
+        } @else if (availability(); as avail) {
+
+          @if (avail.slots.length === 0) {
+            <p class="muted center">No operating hours configured for this room.</p>
+          } @else {
+            <div class="slots-grid">
+              @for (slot of avail.slots; track trackSlot($index, slot)) {
+                <div
+                  class="slot"
+                  [class.slot-free]="slot.available"
+                  [class.slot-busy]="!slot.available"
+                  [title]="slot.available ? 'Available' : (slot.reason ?? 'Booked')"
+                >
+                  <span class="slot-time">{{ slot.start }}</span>
+                  @if (!slot.available && slot.reason) {
+                    <span class="slot-reason">{{ slot.reason }}</span>
+                  }
+                  @if (slot.available) {
+                    <span class="slot-label">Free</span>
+                  }
+                </div>
+              }
+            </div>
+          }
+
+        }
       </article>
     </div>
   }

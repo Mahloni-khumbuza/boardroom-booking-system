@@ -32,6 +32,21 @@ export interface Boardroom {
   updatedAt: string;
 }
 
+export interface AvailabilitySlot {
+  start: string;
+  end: string;
+  available: boolean;
+  reason?: string;
+}
+
+export interface BoardroomAvailability {
+  boardroomId: string;
+  date: string;
+  openingTime: string;
+  closingTime: string;
+  slots: AvailabilitySlot[];
+}
+
 export interface BoardroomCreateRequest {
   name: string;
   code?: string;

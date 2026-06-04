@@ -1,0 +1,111 @@
+<section class="page">
+  <h1 class="title">My Profile</h1>
+
+  @if (loading()) {
+    <app-spinner label="Loading profile…" />
+  } @else if (error(); as err) {
+    <div class="banner error">{{ err }}</div>
+  } @else if (user(); as u) {
+
+    <div class="layout">
+
+      <!-- Avatar card -->
+      <div class="avatar-card">
+        <div class="avatar">{{ initials() }}</div>
+        <div class="name">{{ u.firstName }} {{ u.lastName }}</div>
+        <div class="email">{{ u.email }}</div>
+        <span class="role-badge">{{ roleName() }}</span>
+        <div class="meta-row">
+          <span class="meta-label">Status</span>
+          <span class="badge" [class.on]="u.isActive" [class.off]="!u.isActive">
+            {{ u.isActive ? 'Active' : 'Inactive' }}
+          </span>
+        </div>
+        @if (u.department) {
+          <div class="meta-row">
+            <span class="meta-label">Department</span>
+            <span>{{ u.department }}</span>
+          </div>
+        }
+        @if (u.jobTitle) {
+          <div class="meta-row">
+            <span class="meta-label">Job Title</span>
+            <span>{{ u.jobTitle }}</span>
+          </div>
+        }
+        @if (u.phoneNumber) {
+          <div class="meta-row">
+            <span class="meta-label">Phone</span>
+            <span>{{ u.phoneNumber }}</span>
+          </div>
+        }
+        <div class="meta-row">
+          <span class="meta-label">Member since</span>
+          <span>{{ u.createdAt | date: 'mediumDate' }}</span>
+        </div>
+      </div>
+
+      <!-- Edit form -->
+      <div class="form-card">
+        <h2>Edit profile</h2>
+
+        @if (successMsg(); as msg) {
+          <div class="banner success">{{ msg }}</div>
+        }
+        @if (error(); as err) {
+          <div class="banner error">{{ err }}</div>
+        }
+
+        <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+          <div class="row">
+            <label class="field">
+              <span>First name</span>
+              <input type="text" formControlName="firstName" maxlength="100" />
+              @if (form.controls.firstName.touched && form.controls.firstName.invalid) {
+                <small class="err">Required (min 2 characters).</small>
+              }
+            </label>
+            <label class="field">
+              <span>Last name</span>
+              <input type="text" formControlName="lastName" maxlength="100" />
+              @if (form.controls.lastName.touched && form.controls.lastName.invalid) {
+                <small class="err">Required (min 2 characters).</small>
+              }
+            </label>
+          </div>
+
+          <div class="row">
+            <label class="field">
+              <span>Phone number <span class="optional">(optional)</span></span>
+              <input type="tel" formControlName="phoneNumber" placeholder="+27 71 123 4567" maxlength="30" />
+            </label>
+            <label class="field">
+              <span>Department <span class="optional">(optional)</span></span>
+              <input type="text" formControlName="department" maxlength="100" />
+            </label>
+          </div>
+
+          <label class="field">
+            <span>Job title <span class="optional">(optional)</span></span>
+            <input type="text" formControlName="jobTitle" maxlength="100" />
+          </label>
+
+          <label class="field">
+            <span>New password <span class="optional">(leave blank to keep current)</span></span>
+            <input type="password" formControlName="password" placeholder="At least 8 characters" />
+            @if (form.controls.password.value.length > 0 && form.controls.password.value.length < 8) {
+              <small class="err">Password must be at least 8 characters.</small>
+            }
+          </label>
+
+          <div class="form-actions">
+            <button type="submit" class="btn primary" [disabled]="saving()">
+              {{ saving() ? 'Saving…' : 'Save changes' }}
+            </button>
+          </div>
+        </form>
+      </div>
+
+    </div>
+  }
+</section>

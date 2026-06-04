@@ -14,6 +14,10 @@ export class UsersService {
     return this.http.get<AdminUser[]>(this.url);
   }
 
+  me(): Observable<AdminUser> {
+    return this.http.get<AdminUser>(`${this.url}/me`);
+  }
+
   create(payload: UserCreateRequest): Observable<AdminUser> {
     return this.http.post<AdminUser>(this.url, payload);
   }

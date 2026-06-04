@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
@@ -23,14 +23,17 @@ export class AdminAmenitiesPage {
 
   readonly amenities = signal<Amenity[]>([]);
   readonly loading = signal(false);
-  readonly editingId = signal<string | null>(null);
-  readonly error = signal<string | null>(null);
   readonly saving = signal(false);
+  readonly error = signal<string | null>(null);
+  readonly showForm = signal(false);
+  readonly editingId = signal<string | null>(null);
+
+  readonly isEdit = computed(() => !!this.editingId());
 
   readonly form = this.fb.nonNullable.group({
-    name: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(80)]],
+    name:        ['', [Validators.required, Validators.minLength(2), Validators.maxLength(80)]],
     description: [''],
-    icon: ['']
+    icon:        ['']
   });
 
   constructor() {
@@ -41,34 +44,33 @@ export class AdminAmenitiesPage {
     this.loading.set(true);
     this.error.set(null);
     this.amenitiesService.list().subscribe({
-      next: (list) => {
-        this.amenities.set(list);
-        this.loading.set(false);
-      },
-      error: (err) => {
-        this.error.set(this.errorMessage(err));
-        this.loading.set(false);
-      }
+      next: (list) => { this.amenities.set(list); this.loading.set(false); },
+      error: (err) => { this.error.set(this.errorMessage(err)); this.loading.set(false); }
     });
   }
 
-  startCreate(): void {
+  openCreate(): void {
     this.editingId.set(null);
     this.form.reset({ name: '', description: '', icon: '' });
+    this.error.set(null);
+    this.showForm.set(true);
   }
 
-  startEdit(amenity: Amenity): void {
+  openEdit(amenity: Amenity): void {
     this.editingId.set(amenity.id);
     this.form.reset({
-      name: amenity.name,
+      name:        amenity.name,
       description: amenity.description ?? '',
-      icon: amenity.icon ?? ''
+      icon:        amenity.icon ?? ''
     });
+    this.error.set(null);
+    this.showForm.set(true);
   }
 
-  cancel(): void {
+  closeForm(): void {
+    this.showForm.set(false);
     this.editingId.set(null);
-    this.form.reset({ name: '', description: '', icon: '' });
+    this.error.set(null);
   }
 
   submit(): void {
@@ -78,14 +80,12 @@ export class AdminAmenitiesPage {
     }
     this.saving.set(true);
     this.error.set(null);
-
     const raw = this.form.getRawValue();
     const payload = {
-      name: raw.name.trim(),
+      name:        raw.name.trim(),
       description: raw.description?.trim() || undefined,
-      icon: raw.icon?.trim() || undefined
+      icon:        raw.icon?.trim() || undefined
     };
-
     const id = this.editingId();
     const req = id
       ? this.amenitiesService.update(id, payload)
@@ -95,25 +95,26 @@ export class AdminAmenitiesPage {
       next: () => {
         this.saving.set(false);
         this.toast.success(id ? 'Amenity updated.' : 'Amenity created.');
-        this.cancel();
+        this.closeForm();
         this.refresh();
       },
-      error: (err) => {
-        this.error.set(this.errorMessage(err));
-        this.saving.set(false);
-      }
+      error: (err) => { this.error.set(this.errorMessage(err)); this.saving.set(false); }
     });
   }
 
   remove(amenity: Amenity): void {
-    this.dialog.confirm({ title: 'Delete Amenity', message: `Delete amenity "${amenity.name}"?`, confirmLabel: 'Delete', danger: true })
-      .subscribe((confirmed) => {
-        if (!confirmed) return;
-        this.amenitiesService.remove(amenity.id).subscribe({
-          next: () => { this.refresh(); this.toast.success('Amenity deleted.'); },
-          error: (err) => this.error.set(this.errorMessage(err))
-        });
+    this.dialog.confirm({
+      title: 'Delete Amenity',
+      message: `Delete amenity "${amenity.name}"?`,
+      confirmLabel: 'Delete',
+      danger: true
+    }).subscribe((confirmed) => {
+      if (!confirmed) return;
+      this.amenitiesService.remove(amenity.id).subscribe({
+        next: () => { this.refresh(); this.toast.success('Amenity deleted.'); },
+        error: (err) => this.error.set(this.errorMessage(err))
       });
+    });
   }
 
   private errorMessage(err: unknown): string {

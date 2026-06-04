@@ -9,10 +9,16 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Amenity } from '../../amenities/entities/amenity.entity';
+import { Booking, BookingStatus } from '../../bookings/entities/booking.entity';
+import { BoardroomBlock } from '../../boardroom-blocks/entities/boardroom-block.entity';
 import { Boardroom } from '../entities/boardroom.entity';
 import { BoardroomQueryDto } from '../dto/boardroom-query.dto';
+import { AvailabilityQueryDto, AvailabilityResponseDto, TimeSlot } from '../dto/availability-query.dto';
 import { CreateBoardroomDto } from '../dto/create-boardroom.dto';
 import { UpdateBoardroomDto } from '../dto/update-boardroom.dto';
+
+const ACTIVE_STATUSES = [BookingStatus.Pending, BookingStatus.Confirmed];
+const SLOT_INTERVAL_MINUTES = 30;
 
 @Injectable()
 export class BoardroomsService {
@@ -23,6 +29,10 @@ export class BoardroomsService {
     private readonly boardroomsRepository: Repository<Boardroom>,
     @InjectRepository(Amenity)
     private readonly amenitiesRepository: Repository<Amenity>,
+    @InjectRepository(Booking)
+    private readonly bookingsRepository: Repository<Booking>,
+    @InjectRepository(BoardroomBlock)
+    private readonly blocksRepository: Repository<BoardroomBlock>,
   ) {}
 
   async findAll(query: BoardroomQueryDto = {}): Promise<Boardroom[]> {
@@ -135,6 +145,84 @@ export class BoardroomsService {
     } catch (err) { this.rethrow(err, 'update boardroom'); }
   }
 
+  async getAvailability(id: string, query: AvailabilityQueryDto): Promise<AvailabilityResponseDto> {
+    try {
+      const boardroom = await this.findOne(id);
+
+      const [year, month, day] = query.date.split('-').map(Number);
+      const dayStart = new Date(year, month - 1, day, 0, 0, 0);
+      const dayEnd = new Date(year, month - 1, day, 23, 59, 59);
+
+      const [openH, openM] = boardroom.openingTime.split(':').map(Number);
+      const [closeH, closeM] = boardroom.closingTime.split(':').map(Number);
+      const openMinutes = openH * 60 + openM;
+      const closeMinutes = closeH * 60 + closeM;
+
+      // Fetch active bookings and maintenance blocks for the day
+      const bookings = await this.bookingsRepository
+        .createQueryBuilder('b')
+        .where('b.boardroomId = :id', { id })
+        .andWhere('b.status IN (:...statuses)', { statuses: ACTIVE_STATUSES })
+        .andWhere('b.startTime < :dayEnd AND b.endTime > :dayStart', { dayStart, dayEnd })
+        .orderBy('b.startTime', 'ASC')
+        .getMany();
+
+      const blocks = await this.blocksRepository
+        .createQueryBuilder('blk')
+        .where('blk.boardroomId = :id', { id })
+        .andWhere('blk.isActive = true')
+        .andWhere('blk.startTime < :dayEnd AND blk.endTime > :dayStart', { dayStart, dayEnd })
+        .orderBy('blk.startTime', 'ASC')
+        .getMany();
+
+      // Build busy intervals (start/end as minutes-from-midnight)
+      interface BusyInterval { start: number; end: number; reason: string }
+      const busy: BusyInterval[] = [];
+      for (const b of bookings) {
+        const s = new Date(b.startTime);
+        const e = new Date(b.endTime);
+        const startMins = s.getHours() * 60 + s.getMinutes();
+        const endMins = e.getHours() * 60 + e.getMinutes();
+        const buffer = boardroom.bufferTimeBeforeMinutes + boardroom.bufferTimeAfterMinutes;
+        busy.push({
+          start: Math.max(openMinutes, startMins - boardroom.bufferTimeBeforeMinutes),
+          end: Math.min(closeMinutes, endMins + boardroom.bufferTimeAfterMinutes),
+          reason: buffer > 0 ? `${b.title} (+ ${buffer} min buffer)` : b.title,
+        });
+      }
+      for (const blk of blocks) {
+        const s = new Date(blk.startTime);
+        const e = new Date(blk.endTime);
+        busy.push({
+          start: s.getHours() * 60 + s.getMinutes(),
+          end: e.getHours() * 60 + e.getMinutes(),
+          reason: `Blocked: ${blk.reason}`,
+        });
+      }
+
+      // Generate 30-minute slots within operating hours
+      const slots: TimeSlot[] = [];
+      for (let m = openMinutes; m < closeMinutes; m += SLOT_INTERVAL_MINUTES) {
+        const slotEnd = Math.min(m + SLOT_INTERVAL_MINUTES, closeMinutes);
+        const conflict = busy.find((b) => b.start < slotEnd && b.end > m);
+        slots.push({
+          start: minutesToTimeString(m),
+          end: minutesToTimeString(slotEnd),
+          available: !conflict,
+          ...(conflict ? { reason: conflict.reason } : {}),
+        });
+      }
+
+      return {
+        boardroomId: id,
+        date: query.date,
+        openingTime: boardroom.openingTime,
+        closingTime: boardroom.closingTime,
+        slots,
+      };
+    } catch (err) { this.rethrow(err, 'getAvailability'); }
+  }
+
   async remove(id: string): Promise<void> {
     try {
       const result = await this.boardroomsRepository.delete(id);
@@ -160,4 +248,10 @@ export class BoardroomsService {
     }
     return found;
   }
+}
+
+function minutesToTimeString(minutes: number): string {
+  const h = Math.floor(minutes / 60).toString().padStart(2, '0');
+  const m = (minutes % 60).toString().padStart(2, '0');
+  return `${h}:${m}`;
 }

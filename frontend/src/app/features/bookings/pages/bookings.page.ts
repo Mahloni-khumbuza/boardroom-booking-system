@@ -296,6 +296,33 @@ export class BookingsPage {
     return this.isAdmin() || b.bookedBy?.id === this.currentUserId();
   }
 
+  canDelete(b: Booking): boolean {
+    return this.isAdmin() && (b.status === 'cancelled' || b.status === 'completed');
+  }
+
+  deleteBooking(booking: Booking): void {
+    this.dialog.confirm({
+      title: 'Delete Booking',
+      message: `Permanently delete "${booking.title}"? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    }).subscribe((confirmed) => {
+      if (!confirmed) return;
+      this.busyId.set(booking.id);
+      this.service.remove(booking.id).subscribe({
+        next: () => {
+          this.bookings.update((list) => list.filter((b) => b.id !== booking.id));
+          this.busyId.set(null);
+          this.toast.success('Booking deleted.');
+        },
+        error: (err) => {
+          this.error.set(this.errorMessage(err));
+          this.busyId.set(null);
+        }
+      });
+    });
+  }
+
   statusLabel(s: BookingStatus): string { return STATUS_LABELS[s]; }
   bookerLabel(b: Booking): string {
     if (!b.bookedBy) return '—';

@@ -62,7 +62,7 @@ export class CalendarPage {
 
   calendarOptions: CalendarOptions = {
     plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
-    initialView: 'dayGridMonth',
+    initialView: 'timeGridWeek',
     headerToolbar: {
       left: 'prev,next today',
       center: 'title',
@@ -164,8 +164,12 @@ export class CalendarPage {
     const s = this.selected();
     if (!s) return;
     this.bookingsService.approve(s.booking.id).subscribe({
-      next: (updated) => { this.replaceBooking(updated); this.closeDetail(); },
-      error: (err) => this.error.set(this.errorMessage(err))
+      next: () => {
+        this.closeDetail();
+        this.toast.success('Booking approved.');
+        this.refresh();
+      },
+      error: (err) => { this.error.set(this.errorMessage(err)); this.cdr.markForCheck(); }
     });
   }
 
@@ -180,21 +184,14 @@ export class CalendarPage {
     }).subscribe((confirmed) => {
       if (!confirmed) return;
       this.bookingsService.cancel(s.booking.id).subscribe({
-        next: (updated) => {
-          this.replaceBooking(updated);
+        next: () => {
           this.closeDetail();
           this.toast.success('Booking cancelled.');
-          this.cdr.markForCheck();
+          this.refresh();
         },
         error: (err) => { this.error.set(this.errorMessage(err)); this.cdr.markForCheck(); }
       });
     });
-  }
-
-  private replaceBooking(updated: Booking): void {
-    this.bookings.update((list) => list.map((b) => b.id === updated.id ? updated : b));
-    this.updateEvents();
-    this.cdr.markForCheck();
   }
 
   statusLabel(s: BookingStatus): string {

@@ -1,16 +1,18 @@
-import { Component, computed, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { map } from 'rxjs';
 import { LucideAngularModule,
   LayoutDashboard, DoorOpen, Sparkles, CalendarDays, BookOpen,
   CalendarRange, Users, Bell, Settings, ScrollText, ShieldCheck,
-  KeyRound, Wrench, LogOut, Building2, OctagonMinus
+  KeyRound, Wrench, LogOut, Building2, OctagonMinus, UserCircle, Search
 } from 'lucide-angular';
 
 type LucideIconData = readonly (readonly [string, Record<string, string | number>])[];
 
 import { AuthService } from '../../../features/auth/services/auth.service';
+import { NotificationsService } from '../../../features/notifications/services/notifications.service';
 
 export interface NavItem {
   label: string;
@@ -38,19 +40,22 @@ const NAV_ICONS: Record<string, LucideIconData> = {
   'Roles':           ShieldCheck,
   'Permissions':     KeyRound,
   'Room Equipment':  Wrench,
+  'My Profile':      UserCircle,
+  'Browse Rooms':    Search,
 };
 
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, LucideAngularModule],
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, LucideAngularModule],
   templateUrl: './shell.component.html',
   styleUrl: './shell.component.css'
 })
-export class ShellComponent {
+export class ShellComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly notificationsService = inject(NotificationsService);
 
   readonly LogOut = LogOut;
   readonly Building2 = Building2;
@@ -81,6 +86,18 @@ export class ShellComponent {
     return (f + l).toUpperCase() || u.email[0].toUpperCase();
   });
   readonly roleLabel = computed(() => this.auth.role() ?? '');
+  readonly unreadCount = signal<number>(0);
+
+  ngOnInit(): void {
+    this.refreshUnread();
+  }
+
+  refreshUnread(): void {
+    this.notificationsService.unreadCount().subscribe({
+      next: (res) => this.unreadCount.set(res.unread),
+      error: () => {}
+    });
+  }
 
   logout(): void {
     this.auth.logout();

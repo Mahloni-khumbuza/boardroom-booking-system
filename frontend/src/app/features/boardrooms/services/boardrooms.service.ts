@@ -5,6 +5,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import {
   Boardroom,
+  BoardroomAvailability,
   BoardroomCreateRequest,
   BoardroomUpdateRequest
 } from '../models/boardroom.model';
@@ -50,5 +51,10 @@ export class BoardroomsService {
 
   updateEquipmentStatus(id: string, equipmentStatus: string): Observable<Boardroom> {
     return this.http.patch<Boardroom>(`${this.url}/${id}/equipment-status`, { equipmentStatus });
+  }
+
+  getAvailability(id: string, date: string): Observable<BoardroomAvailability> {
+    const params = new HttpParams().set('date', date);
+    return this.http.get<BoardroomAvailability>(`${this.url}/${id}/availability`, { params });
   }
 }

@@ -25,6 +25,7 @@ import { IsEnum } from 'class-validator';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Permissions } from '../../../shared/decorators/permissions.decorator';
 import { PermissionsGuard } from '../../../shared/guards/permissions.guard';
+import { AvailabilityQueryDto, AvailabilityResponseDto } from '../dto/availability-query.dto';
 import { BoardroomQueryDto } from '../dto/boardroom-query.dto';
 import { BoardroomResponseDto } from '../dto/boardroom-response.dto';
 import { CreateBoardroomDto } from '../dto/create-boardroom.dto';
@@ -59,6 +60,17 @@ export class BoardroomsController {
   @ApiOkResponse({ type: BoardroomResponseDto })
   findOne(@Param('id', new ParseUUIDPipe()) id: string): Promise<BoardroomResponseDto> {
     return this.boardroomsService.findOne(id);
+  }
+
+  @Get(':id/availability')
+  @Permissions('boardrooms:read')
+  @ApiOperation({ summary: 'Get 30-minute availability slots for a boardroom on a given date', operationId: 'getBoardroomAvailability' })
+  @ApiOkResponse({ description: 'Availability slots for the requested date' })
+  getAvailability(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Query() query: AvailabilityQueryDto,
+  ): Promise<AvailabilityResponseDto> {
+    return this.boardroomsService.getAvailability(id, query);
   }
 
   @Post()
