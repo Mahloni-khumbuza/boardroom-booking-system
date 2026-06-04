@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
@@ -30,13 +30,20 @@ export class AdminBoardroomsPage {
     ? '/superadmin/amenities'
     : '/admin/amenities';
 
+  readonly portalBase = this.router.url.startsWith('/superadmin')
+    ? '/superadmin'
+    : '/admin';
+
   readonly boardrooms = signal<Boardroom[]>([]);
   readonly amenities = signal<Amenity[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly saving = signal(false);
+  readonly showForm = signal(false);
   readonly editingId = signal<string | null>(null);
   readonly selectedAmenityIds = signal<Set<string>>(new Set());
+
+  readonly isEdit = computed(() => !!this.editingId());
 
   readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(80)]],
@@ -46,7 +53,8 @@ export class AdminBoardroomsPage {
       validators: [Validators.required, Validators.min(1), Validators.max(1000)]
     }),
     location: [''],
-    isActive: [true]
+    isActive: [true],
+    requiresApproval: [false]
   });
 
   constructor() {
@@ -72,41 +80,38 @@ export class AdminBoardroomsPage {
     });
   }
 
-  startCreate(): void {
+  openCreate(): void {
     this.editingId.set(null);
-    this.form.reset({
-      name: '',
-      description: '',
-      capacity: 4,
-      location: '',
-      isActive: true
-    });
+    this.form.reset({ name: '', description: '', capacity: 4, location: '', isActive: true, requiresApproval: false });
     this.selectedAmenityIds.set(new Set());
+    this.error.set(null);
+    this.showForm.set(true);
   }
 
-  startEdit(boardroom: Boardroom): void {
+  openEdit(boardroom: Boardroom): void {
     this.editingId.set(boardroom.id);
     this.form.reset({
       name: boardroom.name,
       description: boardroom.description ?? '',
       capacity: boardroom.capacity,
       location: boardroom.location ?? '',
-      isActive: boardroom.isActive
+      isActive: boardroom.isActive,
+      requiresApproval: boardroom.requiresApproval
     });
-    this.selectedAmenityIds.set(new Set(boardroom.amenities.map((a) => a.id)));
+    this.selectedAmenityIds.set(new Set(boardroom.amenities.map(a => a.id)));
+    this.error.set(null);
+    this.showForm.set(true);
   }
 
-  cancel(): void {
-    this.startCreate();
+  closeForm(): void {
+    this.showForm.set(false);
+    this.editingId.set(null);
+    this.error.set(null);
   }
 
   toggleAmenity(id: string): void {
     const set = new Set(this.selectedAmenityIds());
-    if (set.has(id)) {
-      set.delete(id);
-    } else {
-      set.add(id);
-    }
+    set.has(id) ? set.delete(id) : set.add(id);
     this.selectedAmenityIds.set(set);
   }
 
@@ -121,18 +126,18 @@ export class AdminBoardroomsPage {
     }
     this.saving.set(true);
     this.error.set(null);
-
     const raw = this.form.getRawValue();
+    const id = this.editingId();
     const payload = {
       name: raw.name.trim(),
       description: raw.description?.trim() || undefined,
       capacity: Number(raw.capacity),
       location: raw.location?.trim() || undefined,
-      isActive: raw.isActive,
+      isActive: id ? raw.isActive : true,
+      requiresApproval: raw.requiresApproval,
       amenityIds: Array.from(this.selectedAmenityIds())
     };
 
-    const id = this.editingId();
     const req = id
       ? this.boardroomsService.update(id, payload)
       : this.boardroomsService.create(payload);
@@ -141,7 +146,7 @@ export class AdminBoardroomsPage {
       next: () => {
         this.saving.set(false);
         this.toast.success(id ? 'Boardroom updated.' : 'Boardroom created.');
-        this.startCreate();
+        this.closeForm();
         this.refresh();
       },
       error: (err) => {
@@ -152,14 +157,18 @@ export class AdminBoardroomsPage {
   }
 
   remove(boardroom: Boardroom): void {
-    this.dialog.confirm({ title: 'Delete Boardroom', message: `Delete "${boardroom.name}"? All bookings for this room will also be removed.`, confirmLabel: 'Delete', danger: true })
-      .subscribe((confirmed) => {
-        if (!confirmed) return;
-        this.boardroomsService.remove(boardroom.id).subscribe({
-          next: () => { this.refresh(); this.toast.success('Boardroom deleted.'); },
-          error: (err) => this.error.set(this.errorMessage(err))
-        });
+    this.dialog.confirm({
+      title: 'Delete Boardroom',
+      message: `Delete "${boardroom.name}"? All bookings for this room will also be removed.`,
+      confirmLabel: 'Delete',
+      danger: true
+    }).subscribe((confirmed) => {
+      if (!confirmed) return;
+      this.boardroomsService.remove(boardroom.id).subscribe({
+        next: () => { this.refresh(); this.toast.success('Boardroom deleted.'); },
+        error: (err) => this.error.set(this.errorMessage(err))
       });
+    });
   }
 
   private errorMessage(err: unknown): string {

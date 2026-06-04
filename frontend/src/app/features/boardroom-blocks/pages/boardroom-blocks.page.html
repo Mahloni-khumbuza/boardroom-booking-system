@@ -13,6 +13,7 @@
     <div class="banner error">{{ err }}</div>
   }
 
+  <!-- ── Create form ──────────────────────────────────────────────────────── -->
   @if (showCreate()) {
     <div class="create-card">
       <h2>New block</h2>
@@ -41,7 +42,7 @@
         </div>
         <label class="field">
           <span>Reason</span>
-          <input type="text" formControlName="reason" maxlength="200" placeholder="HVAC maintenance" />
+          <input type="text" formControlName="reason" maxlength="200" placeholder="e.g. HVAC maintenance" />
           @if (createForm.controls.reason.touched && createForm.controls.reason.invalid) {
             <small class="error">Reason is required (2–200 characters).</small>
           }
@@ -56,6 +57,42 @@
     </div>
   }
 
+  <!-- ── Edit form ────────────────────────────────────────────────────────── -->
+  @if (editingBlock(); as block) {
+    <div class="create-card editing">
+      <div class="edit-head">
+        <h2>Edit block — <span class="edit-room">{{ block.boardroom.name }}</span></h2>
+        <button type="button" class="btn ghost small" (click)="cancelEdit()">Cancel</button>
+      </div>
+      <form [formGroup]="editForm" (ngSubmit)="submitEdit()" novalidate>
+        <div class="row">
+          <label class="field">
+            <span>Start</span>
+            <input type="datetime-local" formControlName="startTime" />
+          </label>
+          <label class="field">
+            <span>End</span>
+            <input type="datetime-local" formControlName="endTime" />
+          </label>
+        </div>
+        <label class="field">
+          <span>Reason</span>
+          <input type="text" formControlName="reason" maxlength="200" />
+          @if (editForm.controls.reason.touched && editForm.controls.reason.invalid) {
+            <small class="error">Reason is required (2–200 characters).</small>
+          }
+        </label>
+        <div class="form-actions">
+          <button type="button" class="btn ghost" (click)="cancelEdit()">Cancel</button>
+          <button type="submit" class="btn primary" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : 'Save changes' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+
+  <!-- ── Blocks table ─────────────────────────────────────────────────────── -->
   <div class="list">
     @if (loading()) {
       <app-spinner label="Loading…" />
@@ -74,12 +111,13 @@
         </thead>
         <tbody>
           @for (b of blocks(); track b.id) {
-            <tr>
+            <tr [class.row-editing]="editingBlock()?.id === b.id">
               <td><strong>{{ b.boardroom.name }}</strong></td>
               <td class="small">{{ b.startTime | date: 'MMM d, h:mm a' }}</td>
               <td class="small">{{ b.endTime | date: 'MMM d, h:mm a' }}</td>
               <td class="muted">{{ b.reason }}</td>
               <td class="actions">
+                <button type="button" class="link" (click)="openEdit(b)">Edit</button>
                 <button type="button" class="link danger" (click)="remove(b)">Delete</button>
               </td>
             </tr>

@@ -1,0 +1,113 @@
+<section class="page">
+
+  <div class="page-head">
+    <button type="button" class="back-btn" (click)="cancel()">← Back to Users</button>
+    <h1>{{ isEdit() ? 'Edit User' : 'New User' }}</h1>
+  </div>
+
+  @if (loading()) {
+    <app-spinner label="Loading…" />
+  } @else {
+
+    @if (error(); as err) {
+      <div class="banner error">{{ err }}</div>
+    }
+
+    <div class="form-card">
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+
+        <div class="section-title">Personal details</div>
+
+        <div class="row">
+          <label class="field">
+            <span>First name</span>
+            <input type="text" formControlName="firstName" placeholder="Jane" maxlength="100" />
+            @if (form.controls.firstName.touched && form.controls.firstName.invalid) {
+              <small class="err">Required — min 2 characters.</small>
+            }
+          </label>
+          <label class="field">
+            <span>Last name</span>
+            <input type="text" formControlName="lastName" placeholder="Doe" maxlength="100" />
+            @if (form.controls.lastName.touched && form.controls.lastName.invalid) {
+              <small class="err">Required — min 2 characters.</small>
+            }
+          </label>
+        </div>
+
+        <div class="row">
+          <label class="field">
+            <span>Work email</span>
+            <input type="email" formControlName="email" placeholder="jane@company.com" />
+            @if (form.controls.email.touched && form.controls.email.invalid) {
+              <small class="err">Enter a valid email address.</small>
+            }
+          </label>
+          <label class="field">
+            <span>Phone number <span class="opt">(optional)</span></span>
+            <input type="tel" formControlName="phoneNumber" placeholder="+27 71 123 4567" maxlength="30" />
+          </label>
+        </div>
+
+        <div class="row">
+          <label class="field">
+            <span>Department <span class="opt">(optional)</span></span>
+            <input type="text" formControlName="department" placeholder="e.g. Engineering" maxlength="100" />
+          </label>
+          <label class="field">
+            <span>Job title <span class="opt">(optional)</span></span>
+            <input type="text" formControlName="jobTitle" placeholder="e.g. Senior Developer" maxlength="100" />
+          </label>
+        </div>
+
+        <div class="divider"></div>
+        <div class="section-title">Access &amp; security</div>
+
+        <div class="row">
+          <label class="field">
+            <span>Role</span>
+            <select formControlName="roleId">
+              <option value="" disabled>Select a role…</option>
+              @for (r of roles(); track r.id) {
+                <option [value]="r.id">{{ r.name }}</option>
+              }
+            </select>
+            @if (form.controls.roleId.touched && form.controls.roleId.invalid) {
+              <small class="err">Please select a role.</small>
+            }
+          </label>
+          <label class="field">
+            <span>
+              @if (isEdit()) { New password <span class="opt">(leave blank to keep current)</span> }
+              @else { Password }
+            </span>
+            <input type="password" formControlName="password" placeholder="At least 8 characters" />
+            @if (form.controls.password.touched && form.controls.password.invalid) {
+              <small class="err">
+                @if (!isEdit()) { Password is required. }
+                @else { Min 8 characters if changing. }
+              </small>
+            }
+          </label>
+        </div>
+
+        @if (isEdit()) {
+          <label class="field field-inline">
+            <input type="checkbox" formControlName="isActive" />
+            <span>Account is active</span>
+          </label>
+        }
+
+        <div class="form-actions">
+          <button type="button" class="btn ghost" (click)="cancel()">Cancel</button>
+          <button type="submit" class="btn primary" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : (isEdit() ? 'Save changes' : 'Create user') }}
+          </button>
+        </div>
+
+      </form>
+    </div>
+
+  }
+
+</section>

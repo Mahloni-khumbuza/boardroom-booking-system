@@ -12,15 +12,17 @@
         }
       </p>
     </div>
-    <div class="page-head-actions">
-      @if (isAdmin()) {
-        <label class="mine-toggle">
-          <input type="checkbox" [checked]="mineOnly()" (change)="toggleMine()" />
-          <span>My bookings only</span>
-        </label>
-      }
-      <button class="btn-new" (click)="openCreate()">+ New Booking</button>
-    </div>
+    @if (!showCreate()) {
+      <div class="page-head-actions">
+        @if (isAdmin()) {
+          <label class="mine-toggle">
+            <input type="checkbox" [checked]="mineOnly()" (change)="toggleMine()" />
+            <span>My bookings only</span>
+          </label>
+        }
+        <button class="btn-new" (click)="openCreate()">+ New Booking</button>
+      </div>
+    }
   </header>
 
   <!-- Error banner -->
@@ -169,7 +171,8 @@
     </div>
   }
 
-  <!-- Bookings tabs -->
+  <!-- Bookings tabs — hidden while form is open -->
+  @if (!showCreate()) {
   @if (loading()) {
     <app-spinner label="Loading bookings…" />
   } @else {
@@ -297,6 +300,7 @@
 
     </mat-tab-group>
   }
+  } <!-- end @if (!showCreate()) -->
 </section>
 
 <!-- Shared bookings table -->
@@ -346,6 +350,11 @@
             @if (canCancel(b)) {
               <button class="btn-action btn-action-danger" [disabled]="busyId() === b.id" (click)="cancel(b)">
                 Cancel
+              </button>
+            }
+            @if (canDelete(b)) {
+              <button class="btn-action btn-action-danger" [disabled]="busyId() === b.id" (click)="deleteBooking(b)">
+                Delete
               </button>
             }
           </td>

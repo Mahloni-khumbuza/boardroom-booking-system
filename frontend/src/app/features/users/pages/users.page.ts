@@ -1,7 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { forkJoin } from 'rxjs';
 
 import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
 import { DialogService } from '../../../core/services/dialog.service';
@@ -31,21 +30,25 @@ export class UsersPage {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly busyId = signal<string | null>(null);
-  readonly showCreate = signal(false);
-  readonly creating = signal(false);
+  readonly showForm = signal(false);
+  readonly editingUser = signal<AdminUser | null>(null);
+  readonly saving = signal(false);
 
   readonly isSuperAdmin = this.auth.isSuperAdmin;
   readonly currentUserId = computed(() => this.auth.currentUser()?.id ?? null);
-  readonly superAdminRoleId = computed(
-    () => this.roles().find((r) => r.name === 'SuperAdmin')?.id ?? null
-  );
+  readonly isEdit = computed(() => !!this.editingUser());
+  readonly inactiveCount = computed(() => this.users().filter(u => !u.isActive).length);
 
-  readonly createForm = this.fb.nonNullable.group({
-    firstName: ['', [Validators.required, Validators.minLength(2)]],
-    lastName: ['', [Validators.required, Validators.minLength(2)]],
-    email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(8)]],
-    roleId: ['', [Validators.required]]
+  readonly form = this.fb.nonNullable.group({
+    firstName:   ['', [Validators.required, Validators.minLength(2), Validators.maxLength(100)]],
+    lastName:    ['', [Validators.required, Validators.minLength(2), Validators.maxLength(100)]],
+    email:       ['', [Validators.required, Validators.email]],
+    password:    ['', [Validators.minLength(8)]],
+    roleId:      ['', [Validators.required]],
+    phoneNumber: [''],
+    department:  [''],
+    jobTitle:    [''],
+    isActive:    [true],
   });
 
   constructor() {
@@ -55,110 +58,165 @@ export class UsersPage {
   refresh(): void {
     this.loading.set(true);
     this.error.set(null);
-    forkJoin({
-      users: this.usersService.list(),
-      roles: this.rolesService.list()
-    }).subscribe({
-      next: ({ users, roles }) => {
+    this.usersService.list().subscribe({
+      next: (users) => {
         this.users.set(users);
-        this.roles.set(roles);
         this.loading.set(false);
+        if (this.roles().length === 0) this.loadRoles();
       },
-      error: (err) => {
-        this.error.set(this.errorMessage(err));
-        this.loading.set(false);
-      }
+      error: (err) => { this.error.set(this.errorMessage(err)); this.loading.set(false); }
     });
   }
 
-  toggleCreate(): void {
-    if (this.showCreate()) {
-      this.showCreate.set(false);
-      this.createForm.reset({
-        firstName: '',
-        lastName: '',
-        email: '',
-        password: '',
-        roleId: ''
-      });
-    } else {
-      const defaultRole = this.roles().find((r) => r.name === 'Employee');
-      this.createForm.reset({
-        firstName: '',
-        lastName: '',
-        email: '',
-        password: '',
-        roleId: defaultRole?.id ?? ''
-      });
-      this.showCreate.set(true);
-    }
+  private loadRoles(): void {
+    this.rolesService.list().subscribe({ next: (r) => this.roles.set(r), error: () => {} });
   }
 
-  submitCreate(): void {
-    if (this.createForm.invalid || this.creating()) {
-      this.createForm.markAllAsTouched();
+  // ── Open / close form ─────────────────────────────────────────────────────
+
+  openCreate(): void {
+    if (this.roles().length === 0) this.loadRoles();
+    this.editingUser.set(null);
+    const defaultRole = this.roles().find(r => r.name === 'Employee');
+    this.form.reset({
+      firstName: '', lastName: '', email: '', password: '',
+      roleId: defaultRole?.id ?? '', phoneNumber: '', department: '', jobTitle: '', isActive: true
+    });
+    this.form.controls.password.addValidators(Validators.required);
+    this.form.controls.password.updateValueAndValidity();
+    this.error.set(null);
+    this.showForm.set(true);
+  }
+
+  openEdit(user: AdminUser): void {
+    if (this.roles().length === 0) this.loadRoles();
+    this.editingUser.set(user);
+    this.form.reset({
+      firstName:   user.firstName,
+      lastName:    user.lastName,
+      email:       user.email,
+      password:    '',
+      roleId:      user.role?.id ?? '',
+      phoneNumber: user.phoneNumber ?? '',
+      department:  user.department ?? '',
+      jobTitle:    user.jobTitle ?? '',
+      isActive:    user.isActive,
+    });
+    this.form.controls.password.clearValidators();
+    this.form.controls.password.updateValueAndValidity();
+    this.error.set(null);
+    this.showForm.set(true);
+  }
+
+  closeForm(): void {
+    this.showForm.set(false);
+    this.editingUser.set(null);
+    this.error.set(null);
+    this.form.controls.password.clearValidators();
+    this.form.controls.password.updateValueAndValidity();
+  }
+
+  // ── Submit ────────────────────────────────────────────────────────────────
+
+  submit(): void {
+    if (this.form.invalid || this.saving()) {
+      this.form.markAllAsTouched();
       return;
     }
-    this.creating.set(true);
+    this.saving.set(true);
     this.error.set(null);
+    const raw = this.form.getRawValue();
+    const user = this.editingUser();
 
-    const raw = this.createForm.getRawValue();
-    this.usersService
-      .create({
-        firstName: raw.firstName.trim(),
-        lastName: raw.lastName.trim(),
-        email: raw.email.trim(),
-        password: raw.password,
-        roleId: raw.roleId
-      })
-      .subscribe({
+    if (user) {
+      const payload: Record<string, unknown> = {
+        firstName:   raw.firstName.trim(),
+        lastName:    raw.lastName.trim(),
+        email:       raw.email.trim(),
+        roleId:      raw.roleId,
+        phoneNumber: raw.phoneNumber.trim() || null,
+        department:  raw.department.trim() || null,
+        jobTitle:    raw.jobTitle.trim() || null,
+        isActive:    raw.isActive,
+      };
+      if (raw.password.trim()) payload['password'] = raw.password.trim();
+
+      this.usersService.update(user.id, payload).subscribe({
+        next: (updated) => {
+          this.users.update(list => list.map(u => u.id === updated.id ? updated : u));
+          this.saving.set(false);
+          this.closeForm();
+          this.toast.success('User updated successfully.');
+        },
+        error: (err) => { this.error.set(this.errorMessage(err)); this.saving.set(false); }
+      });
+    } else {
+      this.usersService.create({
+        firstName:   raw.firstName.trim(),
+        lastName:    raw.lastName.trim(),
+        email:       raw.email.trim(),
+        password:    raw.password,
+        roleId:      raw.roleId || undefined,
+        phoneNumber: raw.phoneNumber.trim() || undefined,
+        department:  raw.department.trim() || undefined,
+        jobTitle:    raw.jobTitle.trim() || undefined,
+        isActive:    true,
+      }).subscribe({
         next: () => {
-          this.creating.set(false);
-          this.toggleCreate();
+          this.saving.set(false);
+          this.closeForm();
           this.refresh();
           this.toast.success('User created successfully.');
         },
-        error: (err) => {
-          this.error.set(this.errorMessage(err));
-          this.creating.set(false);
-        }
+        error: (err) => { this.error.set(this.errorMessage(err)); this.saving.set(false); }
       });
+    }
   }
 
-  canPromote(user: AdminUser): boolean {
-    if (!this.isSuperAdmin()) return false;
-    if (user.role?.name === 'SuperAdmin') return false;
-    return this.superAdminRoleId() !== null;
-  }
+  // ── Delete ────────────────────────────────────────────────────────────────
 
-  promoteToSuperAdmin(user: AdminUser): void {
-    const roleId = this.superAdminRoleId();
-    if (!roleId) return;
+  deleteUser(user: AdminUser): void {
+    if (user.id === this.currentUserId()) return;
     this.dialog.confirm({
-      title: 'Promote to SuperAdmin',
-      message: `Promote ${user.firstName} ${user.lastName} to SuperAdmin? They will gain full system access.`,
-      confirmLabel: 'Promote',
-      danger: true,
+      title: 'Delete user',
+      message: `Permanently delete ${user.firstName} ${user.lastName}? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      danger: true
     }).subscribe((confirmed) => {
       if (!confirmed) return;
       this.busyId.set(user.id);
-      this.error.set(null);
-      this.usersService.update(user.id, { roleId }).subscribe({
-        next: (updated) => {
-          this.users.update((list) => list.map((u) => (u.id === updated.id ? updated : u)));
+      this.usersService.remove(user.id).subscribe({
+        next: () => {
+          this.users.update(list => list.filter(u => u.id !== user.id));
           this.busyId.set(null);
-          this.toast.success(`${user.firstName} ${user.lastName} promoted to SuperAdmin.`);
+          this.toast.success(`${user.firstName} ${user.lastName} deleted.`);
         },
-        error: (err) => {
-          this.error.set(this.errorMessage(err));
-          this.busyId.set(null);
-        }
+        error: (err) => { this.error.set(this.errorMessage(err)); this.busyId.set(null); }
       });
     });
   }
 
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
   fullName(user: AdminUser): string {
     return `${user.firstName} ${user.lastName}`.trim() || user.email;
+  }
+
+  initials(user: AdminUser): string {
+    return ((user.firstName?.[0] ?? '') + (user.lastName?.[0] ?? '')).toUpperCase()
+      || user.email[0].toUpperCase();
+  }
+
+  roleClass(name: string | undefined): string {
+    const map: Record<string, string> = {
+      SuperAdmin: 'super', Admin: 'admin',
+      FacilitiesManager: 'facilities', Employee: 'employee'
+    };
+    return map[name ?? ''] ?? 'none';
+  }
+
+  roleCount(name: string): number {
+    return this.users().filter(u => u.role?.name === name).length;
   }
 
   private errorMessage(err: unknown): string {

@@ -31,12 +31,19 @@ export class BoardroomBlocksPage {
   readonly saving = signal(false);
   readonly error = signal<string | null>(null);
   readonly showCreate = signal(false);
+  readonly editingBlock = signal<BoardroomBlock | null>(null);
 
   readonly createForm = this.fb.nonNullable.group({
     boardroomId: ['', [Validators.required]],
+    startTime:   ['', [Validators.required]],
+    endTime:     ['', [Validators.required]],
+    reason:      ['', [Validators.required, Validators.minLength(2), Validators.maxLength(200)]]
+  });
+
+  readonly editForm = this.fb.nonNullable.group({
     startTime: ['', [Validators.required]],
-    endTime: ['', [Validators.required]],
-    reason: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(200)]]
+    endTime:   ['', [Validators.required]],
+    reason:    ['', [Validators.required, Validators.minLength(2), Validators.maxLength(200)]]
   });
 
   constructor() {
@@ -62,10 +69,13 @@ export class BoardroomBlocksPage {
     });
   }
 
+  // ── Create ────────────────────────────────────────────────────────────────
+
   toggleCreate(): void {
     if (this.showCreate()) {
       this.showCreate.set(false);
     } else {
+      this.editingBlock.set(null);
       const start = roundedNow(60);
       const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
       this.createForm.reset({
@@ -86,36 +96,88 @@ export class BoardroomBlocksPage {
     this.saving.set(true);
     this.error.set(null);
     const raw = this.createForm.getRawValue();
-    this.service
-      .create({
-        boardroomId: raw.boardroomId,
-        startTime: new Date(raw.startTime).toISOString(),
-        endTime: new Date(raw.endTime).toISOString(),
-        reason: raw.reason.trim()
-      })
-      .subscribe({
-        next: () => {
-          this.saving.set(false);
-          this.showCreate.set(false);
-          this.refresh();
-          this.toast.success('Room block created.');
-        },
-        error: (err) => {
-          this.error.set(this.errorMessage(err));
-          this.saving.set(false);
-        }
-      });
+    this.service.create({
+      boardroomId: raw.boardroomId,
+      startTime: new Date(raw.startTime).toISOString(),
+      endTime: new Date(raw.endTime).toISOString(),
+      reason: raw.reason.trim()
+    }).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.showCreate.set(false);
+        this.refresh();
+        this.toast.success('Room block created.');
+      },
+      error: (err) => {
+        this.error.set(this.errorMessage(err));
+        this.saving.set(false);
+      }
+    });
   }
 
+  // ── Edit ──────────────────────────────────────────────────────────────────
+
+  openEdit(block: BoardroomBlock): void {
+    this.showCreate.set(false);
+    this.editingBlock.set(block);
+    this.editForm.reset({
+      startTime: toLocalInput(new Date(block.startTime)),
+      endTime:   toLocalInput(new Date(block.endTime)),
+      reason:    block.reason
+    });
+  }
+
+  cancelEdit(): void {
+    this.editingBlock.set(null);
+    this.editForm.reset();
+  }
+
+  submitEdit(): void {
+    const block = this.editingBlock();
+    if (!block || this.editForm.invalid || this.saving()) {
+      this.editForm.markAllAsTouched();
+      return;
+    }
+    this.saving.set(true);
+    this.error.set(null);
+    const raw = this.editForm.getRawValue();
+    this.service.update(block.id, {
+      startTime: new Date(raw.startTime).toISOString(),
+      endTime:   new Date(raw.endTime).toISOString(),
+      reason:    raw.reason.trim()
+    }).subscribe({
+      next: (updated) => {
+        this.blocks.update((list) => list.map((b) => (b.id === updated.id ? updated : b)));
+        this.saving.set(false);
+        this.cancelEdit();
+        this.toast.success('Room block updated.');
+      },
+      error: (err) => {
+        this.error.set(this.errorMessage(err));
+        this.saving.set(false);
+      }
+    });
+  }
+
+  // ── Delete ────────────────────────────────────────────────────────────────
+
   remove(block: BoardroomBlock): void {
-    this.dialog.confirm({ title: 'Remove Block', message: `Remove maintenance block on "${block.boardroom.name}"?`, confirmLabel: 'Remove', danger: true })
-      .subscribe((confirmed) => {
-        if (!confirmed) return;
-        this.service.remove(block.id).subscribe({
-          next: () => { this.refresh(); this.toast.success('Room block removed.'); },
-          error: (err) => this.error.set(this.errorMessage(err))
-        });
+    this.dialog.confirm({
+      title: 'Remove Block',
+      message: `Remove maintenance block on "${block.boardroom.name}"?`,
+      confirmLabel: 'Remove',
+      danger: true
+    }).subscribe((confirmed) => {
+      if (!confirmed) return;
+      this.service.remove(block.id).subscribe({
+        next: () => {
+          this.blocks.update((list) => list.filter((b) => b.id !== block.id));
+          if (this.editingBlock()?.id === block.id) this.cancelEdit();
+          this.toast.success('Room block removed.');
+        },
+        error: (err) => this.error.set(this.errorMessage(err))
       });
+    });
   }
 
   private errorMessage(err: unknown): string {

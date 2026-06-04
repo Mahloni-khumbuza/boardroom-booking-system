@@ -75,7 +75,7 @@
   } @else {
     <div class="grid">
       @for (r of filtered(); track r.id) {
-        <a class="card" [routerLink]="['/employee/boardrooms', r.id]">
+        <a class="card" [routerLink]="[detailBase(), r.id]">
           <div class="card-head">
             <h3>{{ r.name }}</h3>
             <span class="capacity">{{ r.capacity }} seats</span>

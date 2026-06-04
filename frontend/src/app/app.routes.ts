@@ -11,7 +11,8 @@ const FACILITIES_NAV: NavItem[] = [
   { label: 'Bookings', path: '/facilities/bookings' },
   { label: 'Room Equipment', path: '/facilities/equipment' },
   { label: 'Room Blocks', path: '/facilities/room-blocks' },
-  { label: 'Notifications', path: '/facilities/notifications' }
+  { label: 'Notifications', path: '/facilities/notifications' },
+  { label: 'My Profile', path: '/facilities/profile' }
 ];
 
 const SUPER_ADMIN_NAV: NavItem[] = [
@@ -19,17 +20,20 @@ const SUPER_ADMIN_NAV: NavItem[] = [
   { label: 'Users', path: '/superadmin/users' },
   { label: 'Roles', path: '/superadmin/roles' },
   { label: 'Permissions', path: '/superadmin/permissions' },
+  { label: 'Browse Rooms', path: '/superadmin/browse-boardrooms' },
   { label: 'Boardrooms', path: '/superadmin/boardrooms' },
   { label: 'Amenities', path: '/superadmin/amenities' },
   { label: 'Bookings', path: '/superadmin/bookings' },
   { label: 'Calendar', path: '/superadmin/calendar' },
   { label: 'Settings', path: '/superadmin/settings' },
   { label: 'Audit Logs', path: '/superadmin/audit-logs' },
-  { label: 'Notifications', path: '/superadmin/notifications' }
+  { label: 'Notifications', path: '/superadmin/notifications' },
+  { label: 'My Profile', path: '/superadmin/profile' }
 ];
 
 const ADMIN_NAV: NavItem[] = [
   { label: 'Dashboard', path: '/admin/dashboard' },
+  { label: 'Browse Rooms', path: '/admin/browse-boardrooms' },
   { label: 'Boardrooms', path: '/admin/boardrooms' },
   { label: 'Amenities', path: '/admin/amenities' },
   { label: 'Boardroom Blocks', path: '/admin/boardroom-blocks' },
@@ -38,7 +42,8 @@ const ADMIN_NAV: NavItem[] = [
   { label: 'Users', path: '/admin/users' },
   { label: 'Notifications', path: '/admin/notifications' },
   { label: 'Settings', path: '/admin/settings' },
-  { label: 'Audit Logs', path: '/admin/audit-logs' }
+  { label: 'Audit Logs', path: '/admin/audit-logs' },
+  { label: 'My Profile', path: '/admin/profile' }
 ];
 
 const EMPLOYEE_NAV: NavItem[] = [
@@ -46,7 +51,8 @@ const EMPLOYEE_NAV: NavItem[] = [
   { label: 'Boardrooms', path: '/employee/boardrooms' },
   { label: 'Bookings', path: '/employee/bookings' },
   { label: 'Calendar', path: '/employee/calendar' },
-  { label: 'Notifications', path: '/employee/notifications' }
+  { label: 'Notifications', path: '/employee/notifications' },
+  { label: 'My Profile', path: '/employee/profile' }
 ];
 
 export const routes: Routes = [
@@ -91,10 +97,31 @@ export const routes: Routes = [
           import('./features/permissions/pages/permissions.page').then((m) => m.PermissionsPage)
       },
       {
+        path: 'browse-boardrooms',
+        loadComponent: () =>
+          import('./features/boardrooms/pages/browse-boardrooms.page').then(
+            (m) => m.BrowseBoardroomsPage
+          )
+      },
+      {
+        path: 'browse-boardrooms/:id',
+        loadComponent: () =>
+          import('./features/boardrooms/pages/boardroom-detail.page').then(
+            (m) => m.BoardroomDetailPage
+          )
+      },
+      {
         path: 'boardrooms',
         loadComponent: () =>
           import('./features/boardrooms/pages/admin-boardrooms.page').then(
             (m) => m.AdminBoardroomsPage
+          )
+      },
+      {
+        path: 'boardrooms/:id',
+        loadComponent: () =>
+          import('./features/boardrooms/pages/boardroom-detail.page').then(
+            (m) => m.BoardroomDetailPage
           )
       },
       {
@@ -130,6 +157,11 @@ export const routes: Routes = [
           import('./features/notifications/pages/notifications.page').then(
             (m) => m.NotificationsPage
           )
+      },
+      {
+        path: 'profile',
+        loadComponent: () =>
+          import('./features/users/pages/profile.page').then((m) => m.ProfilePage)
       }
     ]
   },
@@ -147,10 +179,31 @@ export const routes: Routes = [
           import('./features/dashboard/pages/dashboard.page').then((m) => m.DashboardPage)
       },
       {
+        path: 'browse-boardrooms',
+        loadComponent: () =>
+          import('./features/boardrooms/pages/browse-boardrooms.page').then(
+            (m) => m.BrowseBoardroomsPage
+          )
+      },
+      {
+        path: 'browse-boardrooms/:id',
+        loadComponent: () =>
+          import('./features/boardrooms/pages/boardroom-detail.page').then(
+            (m) => m.BoardroomDetailPage
+          )
+      },
+      {
         path: 'boardrooms',
         loadComponent: () =>
           import('./features/boardrooms/pages/admin-boardrooms.page').then(
             (m) => m.AdminBoardroomsPage
+          )
+      },
+      {
+        path: 'boardrooms/:id',
+        loadComponent: () =>
+          import('./features/boardrooms/pages/boardroom-detail.page').then(
+            (m) => m.BoardroomDetailPage
           )
       },
       {
@@ -198,6 +251,11 @@ export const routes: Routes = [
         path: 'audit-logs',
         loadComponent: () =>
           import('./features/audit-logs/pages/audit-logs.page').then((m) => m.AuditLogsPage)
+      },
+      {
+        path: 'profile',
+        loadComponent: () =>
+          import('./features/users/pages/profile.page').then((m) => m.ProfilePage)
       }
     ]
   },
@@ -241,6 +299,11 @@ export const routes: Routes = [
           import('./features/notifications/pages/notifications.page').then(
             (m) => m.NotificationsPage
           )
+      },
+      {
+        path: 'profile',
+        loadComponent: () =>
+          import('./features/users/pages/profile.page').then((m) => m.ProfilePage)
       }
     ]
   },
@@ -287,6 +350,11 @@ export const routes: Routes = [
           import('./features/notifications/pages/notifications.page').then(
             (m) => m.NotificationsPage
           )
+      },
+      {
+        path: 'profile',
+        loadComponent: () =>
+          import('./features/users/pages/profile.page').then((m) => m.ProfilePage)
       }
     ]
   },

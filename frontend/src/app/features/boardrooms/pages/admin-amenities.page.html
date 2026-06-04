@@ -1,64 +1,32 @@
 <section class="page">
 
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
   <header class="page-head">
     <div>
       <h1>Amenities</h1>
       <p class="lede">Manage equipment and features that can be assigned to boardrooms and requested when booking.</p>
     </div>
-    <button class="btn-new" type="button" (click)="startCreate()">+ New Amenity</button>
+    @if (!showForm()) {
+      <button class="btn-new" type="button" (click)="openCreate()">+ New Amenity</button>
+    }
   </header>
 
   @if (error(); as err) {
     <div class="alert-error">{{ err }}</div>
   }
 
-  <div class="layout">
-
-    <!-- Left: amenity list -->
-    <div class="list-panel">
-      @if (loading()) {
-        <app-spinner label="Loading amenities…" />
-      } @else if (amenities().length === 0) {
-        <div class="empty-state">
-          <div class="empty-icon">—</div>
-          <p class="empty-title">No amenities yet</p>
-          <p class="empty-sub">Add your first amenity using the form on the right.</p>
+  <!-- ── Inline form ─────────────────────────────────────────────────────── -->
+  @if (showForm()) {
+    <div class="form-card">
+      <div class="form-card-header">
+        <div>
+          <h2 class="form-card-title">{{ isEdit() ? 'Edit Amenity' : 'New Amenity' }}</h2>
+          <p class="form-card-sub">Fields marked * are required.</p>
         </div>
-      } @else {
-        <div class="amenity-grid">
-          @for (a of amenities(); track a.id) {
-            <div class="amenity-card" [class.editing]="editingId() === a.id">
-              <div class="amenity-icon-wrap">
-                {{ a.icon || a.name[0].toUpperCase() }}
-              </div>
-              <div class="amenity-info">
-                <div class="amenity-name">{{ a.name }}</div>
-                @if (a.description) {
-                  <div class="amenity-desc">{{ a.description }}</div>
-                } @else {
-                  <div class="amenity-desc no-desc">No description</div>
-                }
-              </div>
-              <div class="amenity-actions">
-                <button class="icon-btn" title="Edit" (click)="startEdit(a)">✎</button>
-                <button class="icon-btn icon-btn-danger" title="Delete" (click)="remove(a)">✕</button>
-              </div>
-            </div>
-          }
-        </div>
-      }
-    </div>
-
-    <!-- Right: form panel -->
-    <aside class="form-panel">
-      <div class="form-panel-header">
-        <h2>{{ editingId() ? 'Edit Amenity' : 'New Amenity' }}</h2>
-        @if (editingId()) {
-          <span class="editing-badge">Editing</span>
-        }
+        <button class="btn-close" type="button" (click)="closeForm()" title="Close">&#x2715;</button>
       </div>
 
-      <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="form-body">
 
         <label class="f-field">
           <span class="f-label">Name *</span>
@@ -69,32 +37,62 @@
         </label>
 
         <label class="f-field">
-          <span class="f-label">Description <span class="f-optional">(optional)</span></span>
+          <span class="f-label">Description <span class="f-opt">(optional)</span></span>
           <textarea formControlName="description" rows="3" maxlength="500"
             placeholder="What this amenity provides…"></textarea>
         </label>
 
         <label class="f-field">
-          <span class="f-label">Icon <span class="f-optional">(emoji or short label)</span></span>
+          <span class="f-label">Icon <span class="f-opt">(emoji or short label — optional)</span></span>
           <div class="icon-input-wrap">
             <input type="text" formControlName="icon" maxlength="8" placeholder="e.g. 📽 or TV" />
-            <div class="icon-preview">
-              {{ form.controls.icon.value || '?' }}
-            </div>
+            <div class="icon-preview">{{ form.controls.icon.value || '?' }}</div>
           </div>
           <span class="f-hint">Paste an emoji or type a short label. Shows on room cards.</span>
         </label>
 
         <div class="f-actions">
-          @if (editingId()) {
-            <button type="button" class="btn-cancel" (click)="cancel()">Cancel</button>
-          }
+          <button type="button" class="btn-cancel" (click)="closeForm()">Cancel</button>
           <button type="submit" class="btn-save" [disabled]="saving()">
-            {{ saving() ? 'Saving…' : (editingId() ? 'Save changes' : 'Create amenity') }}
+            {{ saving() ? 'Saving…' : (isEdit() ? 'Save changes' : 'Create amenity') }}
           </button>
         </div>
-      </form>
-    </aside>
 
-  </div>
+      </form>
+    </div>
+  }
+
+  <!-- ── Amenity list ────────────────────────────────────────────────────── -->
+  @if (!showForm()) {
+    @if (loading()) {
+      <app-spinner label="Loading amenities…" />
+    } @else if (amenities().length === 0) {
+      <div class="empty-state">
+        <div class="empty-icon">✦</div>
+        <p class="empty-title">No amenities yet</p>
+        <p class="empty-sub">Click <strong>+ New Amenity</strong> to add your first one.</p>
+      </div>
+    } @else {
+      <div class="amenity-grid">
+        @for (a of amenities(); track a.id) {
+          <div class="amenity-card">
+            <div class="amenity-icon-wrap">{{ a.icon || a.name[0].toUpperCase() }}</div>
+            <div class="amenity-info">
+              <div class="amenity-name">{{ a.name }}</div>
+              @if (a.description) {
+                <div class="amenity-desc">{{ a.description }}</div>
+              } @else {
+                <div class="amenity-desc no-desc">No description</div>
+              }
+            </div>
+            <div class="amenity-actions">
+              <button class="icon-btn" title="Edit" (click)="openEdit(a)">✎</button>
+              <button class="icon-btn icon-btn-danger" title="Delete" (click)="remove(a)">✕</button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  }
+
 </section>

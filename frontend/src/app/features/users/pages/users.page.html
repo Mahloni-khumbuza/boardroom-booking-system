@@ -1,146 +1,224 @@
 <section class="page">
-  <header class="head">
-    <div>
+
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <header class="page-head">
+    <div class="page-head-text">
       <h1>Users</h1>
-      <p class="lede">
-        All accounts in the system.
-        @if (isSuperAdmin()) {
-          As a SuperAdmin you can create new users and promote others to SuperAdmin.
-        }
-      </p>
+      <p class="lede">Manage all internal system accounts.</p>
     </div>
-    @if (isSuperAdmin()) {
-      <button type="button" class="btn primary" (click)="toggleCreate()">
-        {{ showCreate() ? 'Close' : '+ New user' }}
-      </button>
+    @if (isSuperAdmin() && !showForm()) {
+      <button class="btn-new" (click)="openCreate()">+ New User</button>
     }
   </header>
 
   @if (error(); as err) {
-    <div class="banner error">{{ err }}</div>
+    <div class="alert-error">{{ err }}</div>
   }
 
-  @if (isSuperAdmin() && showCreate()) {
-    <div class="create-card">
-      <h2>Create a new user</h2>
-      <form [formGroup]="createForm" (ngSubmit)="submitCreate()" novalidate>
-        <div class="row">
-          <label class="field">
-            <span>First name</span>
-            <input type="text" formControlName="firstName" maxlength="100" />
-            @if (createForm.controls.firstName.touched && createForm.controls.firstName.invalid) {
-              <small class="error">Enter the first name.</small>
+  <!-- ── Inline form (create / edit) ────────────────────────────────────── -->
+  @if (showForm()) {
+    <div class="form-card">
+      <div class="form-card-header">
+        <div>
+          <h2 class="form-card-title">{{ isEdit() ? 'Edit User' : 'New User' }}</h2>
+          <p class="form-card-sub">Fields marked * are required.</p>
+        </div>
+        <button class="btn-close" type="button" (click)="closeForm()" title="Close">&#x2715;</button>
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="form-body">
+
+        <div class="f-section">Personal details</div>
+
+        <div class="f-row">
+          <label class="f-field">
+            <span class="f-label">First name *</span>
+            <input type="text" formControlName="firstName" placeholder="Jane" maxlength="100" />
+            @if (form.controls.firstName.touched && form.controls.firstName.invalid) {
+              <span class="f-error">Required — min 2 characters.</span>
             }
           </label>
-          <label class="field">
-            <span>Last name</span>
-            <input type="text" formControlName="lastName" maxlength="100" />
-            @if (createForm.controls.lastName.touched && createForm.controls.lastName.invalid) {
-              <small class="error">Enter the last name.</small>
+          <label class="f-field">
+            <span class="f-label">Last name *</span>
+            <input type="text" formControlName="lastName" placeholder="Doe" maxlength="100" />
+            @if (form.controls.lastName.touched && form.controls.lastName.invalid) {
+              <span class="f-error">Required — min 2 characters.</span>
             }
           </label>
         </div>
 
-        <div class="row">
-          <label class="field">
-            <span>Work email</span>
-            <input type="email" formControlName="email" placeholder="you@company.com" />
-            @if (createForm.controls.email.touched && createForm.controls.email.invalid) {
-              <small class="error">Enter a valid email.</small>
+        <div class="f-row">
+          <label class="f-field">
+            <span class="f-label">Work email *</span>
+            <input type="email" formControlName="email" placeholder="jane@company.com" />
+            @if (form.controls.email.touched && form.controls.email.invalid) {
+              <span class="f-error">Enter a valid email address.</span>
             }
           </label>
-          <label class="field">
-            <span>Initial password</span>
+          <label class="f-field">
+            <span class="f-label">Phone number <span class="f-opt">(optional)</span></span>
+            <input type="tel" formControlName="phoneNumber" placeholder="+27 71 123 4567" maxlength="30" />
+          </label>
+        </div>
+
+        <div class="f-row">
+          <label class="f-field">
+            <span class="f-label">Department <span class="f-opt">(optional)</span></span>
+            <input type="text" formControlName="department" placeholder="e.g. Engineering" maxlength="100" />
+          </label>
+          <label class="f-field">
+            <span class="f-label">Job title <span class="f-opt">(optional)</span></span>
+            <input type="text" formControlName="jobTitle" placeholder="e.g. Developer" maxlength="100" />
+          </label>
+        </div>
+
+        <div class="f-divider"></div>
+        <div class="f-section">Access &amp; security</div>
+
+        <div class="f-row">
+          <label class="f-field">
+            <span class="f-label">Role *</span>
+            <select formControlName="roleId">
+              <option value="" disabled>Select a role…</option>
+              @for (r of roles(); track r.id) {
+                <option [value]="r.id">{{ r.name }}</option>
+              }
+            </select>
+            @if (form.controls.roleId.touched && form.controls.roleId.invalid) {
+              <span class="f-error">Please select a role.</span>
+            }
+          </label>
+          <label class="f-field">
+            <span class="f-label">
+              @if (isEdit()) { New password <span class="f-opt">(blank = keep current)</span> }
+              @else { Password * }
+            </span>
             <input type="password" formControlName="password" placeholder="At least 8 characters" />
-            @if (createForm.controls.password.touched && createForm.controls.password.invalid) {
-              <small class="error">Password must be at least 8 characters.</small>
+            @if (form.controls.password.touched && form.controls.password.invalid) {
+              <span class="f-error">
+                @if (!isEdit()) { Password is required — } min 8 characters.
+              </span>
             }
           </label>
         </div>
 
-        <label class="field">
-          <span>Role</span>
-          <select formControlName="roleId">
-            <option value="" disabled>Select a role…</option>
-            @for (r of roles(); track r.id) {
-              <option [value]="r.id">{{ r.name }}</option>
-            }
-          </select>
-          @if (createForm.controls.roleId.touched && createForm.controls.roleId.invalid) {
-            <small class="error">Pick a role.</small>
-          }
-        </label>
+        @if (isEdit()) {
+          <label class="f-inline">
+            <input type="checkbox" formControlName="isActive" />
+            <span>Account is active</span>
+          </label>
+        }
 
-        <div class="form-actions">
-          <button type="button" class="btn ghost" (click)="toggleCreate()">Cancel</button>
-          <button type="submit" class="btn primary" [disabled]="creating()">
-            {{ creating() ? 'Creating…' : 'Create user' }}
+        <div class="f-actions">
+          <button type="button" class="btn-cancel" (click)="closeForm()">Cancel</button>
+          <button type="submit" class="btn-save" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : (isEdit() ? 'Save changes' : 'Create user') }}
           </button>
         </div>
+
       </form>
     </div>
   }
 
-  <div class="list">
-    @if (loading()) {
-      <app-spinner label="Loading…" />
-    } @else if (users().length === 0) {
-      <div class="empty">No users yet.</div>
+  <!-- ── Stats bar ───────────────────────────────────────────────────────── -->
+  @if (!loading() && !showForm()) {
+    <div class="stats-bar">
+      <div class="stat">
+        <span class="stat-value">{{ users().length }}</span>
+        <span class="stat-label">Total</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">{{ users().length - inactiveCount() }}</span>
+        <span class="stat-label">Active</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">{{ inactiveCount() }}</span>
+        <span class="stat-label">Inactive</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">{{ roleCount('SuperAdmin') }}</span>
+        <span class="stat-label">Super Admins</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">{{ roleCount('Admin') }}</span>
+        <span class="stat-label">Admins</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">{{ roleCount('FacilitiesManager') }}</span>
+        <span class="stat-label">Facilities</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">{{ roleCount('Employee') }}</span>
+        <span class="stat-label">Employees</span>
+      </div>
+    </div>
+  }
+
+  <!-- ── User cards ──────────────────────────────────────────────────────── -->
+  @if (loading()) {
+    <app-spinner label="Loading users…" />
+  } @else if (!showForm()) {
+    @if (users().length === 0) {
+      <div class="empty">
+        <p>No users yet.</p>
+        @if (isSuperAdmin()) {
+          <button class="btn-new" (click)="openCreate()">+ Create first user</button>
+        }
+      </div>
     } @else {
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Role</th>
-            <th>Status</th>
-            <th>Joined</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (u of users(); track u.id) {
-            <tr>
-              <td>
-                <strong>{{ fullName(u) }}</strong>
-                @if (u.id === currentUserId()) {
-                  <span class="self">you</span>
-                }
-              </td>
-              <td class="muted">{{ u.email }}</td>
-              <td>
-                <span
-                  class="role-badge"
-                  [class.super]="u.role?.name === 'SuperAdmin'"
-                  [class.admin]="u.role?.name === 'Admin'"
-                  [class.manager]="u.role?.name === 'Manager'"
-                  [class.user]="u.role?.name === 'User'"
-                >
-                  {{ u.role?.name || 'None' }}
-                </span>
-              </td>
-              <td>
-                <span class="badge" [class.on]="u.isActive" [class.off]="!u.isActive">
-                  {{ u.isActive ? 'Active' : 'Inactive' }}
-                </span>
-              </td>
-              <td class="muted small">{{ u.createdAt | date: 'mediumDate' }}</td>
-              <td class="actions">
-                @if (canPromote(u)) {
-                  <button
-                    type="button"
-                    class="btn small"
-                    [disabled]="busyId() === u.id"
-                    (click)="promoteToSuperAdmin(u)"
-                  >
-                    {{ busyId() === u.id ? 'Promoting…' : 'Promote to SuperAdmin' }}
-                  </button>
-                }
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
+      <div class="user-grid">
+        @for (u of users(); track u.id) {
+          <div class="user-card" [class.card-inactive]="!u.isActive">
+
+            <div class="card-top">
+              <div class="card-avatar" [class]="'avatar-' + roleClass(u.role?.name)">
+                {{ initials(u) }}
+              </div>
+              <div class="card-identity">
+                <div class="card-name">
+                  {{ fullName(u) }}
+                  @if (u.id === currentUserId()) {
+                    <span class="self-chip">you</span>
+                  }
+                </div>
+                <div class="card-email">{{ u.email }}</div>
+              </div>
+              <span class="dot" [class.dot-on]="u.isActive" [class.dot-off]="!u.isActive"
+                [title]="u.isActive ? 'Active' : 'Inactive'"></span>
+            </div>
+
+            <div class="card-meta">
+              <span class="role-badge" [class]="'role-' + roleClass(u.role?.name)">
+                {{ u.role?.name || 'No role' }}
+              </span>
+              @if (u.jobTitle) { <span class="meta-pill">{{ u.jobTitle }}</span> }
+              @if (u.department) { <span class="meta-pill muted-pill">{{ u.department }}</span> }
+            </div>
+
+            @if (u.phoneNumber) {
+              <div class="card-phone">{{ u.phoneNumber }}</div>
+            }
+
+            <div class="card-footer">
+              <span class="card-joined">Joined {{ u.createdAt | date: 'MMM d, y' }}</span>
+              @if (isSuperAdmin()) {
+                <div class="card-actions">
+                  <button class="icon-btn edit-btn" title="Edit user"
+                    (click)="openEdit(u)" [disabled]="busyId() === u.id">✎</button>
+                  @if (u.id !== currentUserId()) {
+                    <button class="icon-btn delete-btn" title="Delete user"
+                      (click)="deleteUser(u)" [disabled]="busyId() === u.id">
+                      {{ busyId() === u.id ? '…' : '✕' }}
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+
+          </div>
+        }
+      </div>
     }
-  </div>
+  }
+
 </section>

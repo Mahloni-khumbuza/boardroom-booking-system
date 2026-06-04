@@ -174,3 +174,36 @@ tbody td {
 .link:hover {
   text-decoration: underline;
 }
+
+.editing {
+  border-left: 3px solid #4f46e5;
+}
+
+.edit-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.edit-head h2 { margin: 0; }
+
+.edit-room {
+  color: #4f46e5;
+  font-weight: 700;
+}
+
+.btn.small {
+  padding: 5px 10px;
+  font-size: 0.82rem;
+}
+
+.row-editing {
+  background: #f5f3ff;
+}
+
+.actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}

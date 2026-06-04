@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 
 import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
@@ -17,7 +17,15 @@ import { BoardroomsService } from '../services/boardrooms.service';
   styleUrl: './browse-boardrooms.page.css'
 })
 export class BrowseBoardroomsPage {
+  private readonly router = inject(Router);
   private readonly boardroomsService = inject(BoardroomsService);
+
+  readonly detailBase = computed(() => {
+    const url = this.router.url;
+    if (url.startsWith('/superadmin')) return '/superadmin/browse-boardrooms';
+    if (url.startsWith('/admin')) return '/admin/browse-boardrooms';
+    return '/employee/boardrooms';
+  });
   private readonly amenitiesService = inject(AmenitiesService);
 
   readonly boardrooms = signal<Boardroom[]>([]);

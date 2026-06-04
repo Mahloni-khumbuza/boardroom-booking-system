@@ -163,6 +163,11 @@
   color: #ffffff;
 }
 
+/* Override FullCalendar's default yellow today highlight */
+:host ::ng-deep .fc .fc-day-today {
+  background: #e0e7ff !important;
+}
+
 :host ::ng-deep .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
   background: #2563eb;
   color: #ffffff;
