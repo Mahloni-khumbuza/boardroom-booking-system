@@ -1,103 +1,34 @@
-import { CommonModule } from '@angular/common';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { map } from 'rxjs';
-import { LucideAngularModule,
-  LayoutDashboard, DoorOpen, Sparkles, CalendarDays, BookOpen,
-  CalendarRange, Users, Bell, Settings, ScrollText, ShieldCheck,
-  KeyRound, Wrench, LogOut, Building2, OctagonMinus, UserCircle, Search
-} from 'lucide-angular';
-
-type LucideIconData = readonly (readonly [string, Record<string, string | number>])[];
+import { Component, inject } from '@angular/core';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
 import { AuthService } from '../../../features/auth/services/auth.service';
-import { NotificationsService } from '../../../features/notifications/services/notifications.service';
 
-export interface NavItem {
+interface NavItem {
   label: string;
   path: string;
-  icon?: LucideIconData;
 }
-
-export interface ShellRouteData {
-  brand?: string;
-  navItems?: NavItem[];
-}
-
-const NAV_ICONS: Record<string, LucideIconData> = {
-  'Dashboard':       LayoutDashboard,
-  'Boardrooms':      DoorOpen,
-  'Amenities':       Sparkles,
-  'Boardroom Blocks': OctagonMinus,
-  'Room Blocks':     OctagonMinus,
-  'Bookings':        BookOpen,
-  'Calendar':        CalendarRange,
-  'Users':           Users,
-  'Notifications':   Bell,
-  'Settings':        Settings,
-  'Audit Logs':      ScrollText,
-  'Roles':           ShieldCheck,
-  'Permissions':     KeyRound,
-  'Room Equipment':  Wrench,
-  'My Profile':      UserCircle,
-  'Browse Rooms':    Search,
-};
 
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, LucideAngularModule],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive],
   templateUrl: './shell.component.html',
   styleUrl: './shell.component.css'
 })
-export class ShellComponent implements OnInit {
+export class ShellComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
-  private readonly route = inject(ActivatedRoute);
-  private readonly notificationsService = inject(NotificationsService);
 
-  readonly LogOut = LogOut;
-  readonly Building2 = Building2;
-
-  private readonly routeData = toSignal(
-    this.route.data.pipe(map((data) => data as ShellRouteData)),
-    { initialValue: {} as ShellRouteData }
-  );
-
-  readonly brand = computed(() => this.routeData().brand ?? 'Boardroom Booking');
-  readonly navItems = computed<NavItem[]>(() =>
-    (this.routeData().navItems ?? []).map((item) => ({
-      ...item,
-      icon: NAV_ICONS[item.label] ?? CalendarDays,
-    }))
-  );
-  readonly userLabel = computed(() => {
-    const u = this.auth.currentUser();
-    if (!u) return '';
-    const name = [u.firstName, u.lastName].filter(Boolean).join(' ').trim();
-    return name || u.email;
-  });
-  readonly userInitials = computed(() => {
-    const u = this.auth.currentUser();
-    if (!u) return '?';
-    const f = u.firstName?.[0] ?? '';
-    const l = u.lastName?.[0] ?? '';
-    return (f + l).toUpperCase() || u.email[0].toUpperCase();
-  });
-  readonly roleLabel = computed(() => this.auth.role() ?? '');
-  readonly unreadCount = signal<number>(0);
-
-  ngOnInit(): void {
-    this.refreshUnread();
-  }
-
-  refreshUnread(): void {
-    this.notificationsService.unreadCount().subscribe({
-      next: (res) => this.unreadCount.set(res.unread),
-      error: () => {}
-    });
-  }
+  readonly navItems: NavItem[] = [
+    { label: 'Dashboard', path: '/app/dashboard' },
+    { label: 'Boardrooms', path: '/app/boardrooms' },
+    { label: 'Bookings', path: '/app/bookings' },
+    { label: 'Calendar', path: '/app/calendar' },
+    { label: 'Users', path: '/app/users' },
+    { label: 'Notifications', path: '/app/notifications' },
+    { label: 'Settings', path: '/app/settings' },
+    { label: 'Audit Logs', path: '/app/audit-logs' }
+  ];
 
   logout(): void {
     this.auth.logout();
