@@ -26,6 +26,15 @@ export class User {
   @Column({ name: 'last_name' })
   lastName: string;
 
+  @Column({ name: 'phone_number', nullable: true, length: 30 })
+  phoneNumber: string | null;
+
+  @Column({ nullable: true, length: 100 })
+  department: string | null;
+
+  @Column({ name: 'job_title', nullable: true, length: 100 })
+  jobTitle: string | null;
+
   @Column({ default: true, name: 'is_active' })
   isActive: boolean;
 

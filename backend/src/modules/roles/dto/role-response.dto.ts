@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { PermissionResponseDto } from '../../permissions/dto/permission-response.dto';
+import { Role } from '../entities/role.entity';
 
 export class RoleResponseDto {
   @ApiProperty()
@@ -19,4 +20,15 @@ export class RoleResponseDto {
 
   @ApiProperty()
   updatedAt: Date;
+
+  static fromEntity(role: Role): RoleResponseDto {
+    const dto = new RoleResponseDto();
+    dto.id = role.id;
+    dto.name = role.name;
+    dto.description = role.description ?? null;
+    dto.permissions = (role.permissions ?? []).map(PermissionResponseDto.fromEntity);
+    dto.createdAt = role.createdAt;
+    dto.updatedAt = role.updatedAt;
+    return dto;
+  }
 }

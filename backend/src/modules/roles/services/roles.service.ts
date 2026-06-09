@@ -30,7 +30,7 @@ export class RolesService {
   async findAll(): Promise<Role[]> {
     try {
       return await this.rolesRepository.find({ order: { name: 'ASC' }, relations: { permissions: true } });
-    } catch (err) { this.rethrow(err, 'findAll roles'); }
+    } catch (err) { return this.rethrow(err, 'findAll roles'); }
   }
 
   async findOne(id: string): Promise<Role> {
@@ -38,7 +38,7 @@ export class RolesService {
       const role = await this.rolesRepository.findOne({ where: { id }, relations: { permissions: true } });
       if (!role) throw new NotFoundException(`Role ${id} not found`);
       return role;
-    } catch (err) { this.rethrow(err, 'findOne role'); }
+    } catch (err) { return this.rethrow(err, 'findOne role'); }
   }
 
   async create(dto: CreateRoleDto): Promise<Role> {
@@ -48,7 +48,7 @@ export class RolesService {
       const permissions = await this.resolvePermissions(dto.permissionIds);
       const role = this.rolesRepository.create({ name: dto.name, description: dto.description ?? null, permissions });
       return await this.rolesRepository.save(role);
-    } catch (err) { this.rethrow(err, 'create role'); }
+    } catch (err) { return this.rethrow(err, 'create role'); }
   }
 
   async update(id: string, dto: UpdateRoleDto): Promise<Role> {
@@ -62,7 +62,7 @@ export class RolesService {
       if (dto.description !== undefined) role.description = dto.description;
       if (dto.permissionIds !== undefined) role.permissions = await this.resolvePermissions(dto.permissionIds);
       return await this.rolesRepository.save(role);
-    } catch (err) { this.rethrow(err, 'update role'); }
+    } catch (err) { return this.rethrow(err, 'update role'); }
   }
 
   async remove(id: string): Promise<void> {
@@ -73,7 +73,7 @@ export class RolesService {
         throw new ConflictException(`Cannot delete role "${role.name}" — ${inUse} user(s) still assigned`);
       }
       await this.rolesRepository.delete(role.id);
-    } catch (err) { this.rethrow(err, 'remove role'); }
+    } catch (err) { return this.rethrow(err, 'remove role'); }
   }
 
   private rethrow(err: unknown, context: string): never {

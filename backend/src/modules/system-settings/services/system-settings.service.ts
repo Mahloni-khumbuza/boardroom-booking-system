@@ -19,7 +19,7 @@ export class SystemSettingsService {
   async findAll(): Promise<SystemSetting[]> {
     try {
       return await this.repo.find({ order: { key: 'ASC' } });
-    } catch (err) { this.rethrow(err, 'findAll settings'); }
+    } catch (err) { return this.rethrow(err, 'findAll settings'); }
   }
 
   async findOne(id: string): Promise<SystemSetting> {
@@ -27,7 +27,7 @@ export class SystemSettingsService {
       const setting = await this.repo.findOne({ where: { id } });
       if (!setting) throw new NotFoundException(`Setting ${id} not found`);
       return setting;
-    } catch (err) { this.rethrow(err, 'findOne setting'); }
+    } catch (err) { return this.rethrow(err, 'findOne setting'); }
   }
 
   findByKey(key: string): Promise<SystemSetting | null> {
@@ -48,7 +48,7 @@ export class SystemSettingsService {
         after: { key: saved.key, value: saved.value },
       });
       return saved;
-    } catch (err) { this.rethrow(err, 'create setting'); }
+    } catch (err) { return this.rethrow(err, 'create setting'); }
   }
 
   async update(id: string, dto: UpdateSystemSettingDto, actorId?: string): Promise<SystemSetting> {
@@ -67,7 +67,7 @@ export class SystemSettingsService {
         after: { key: saved.key, value: saved.value },
       });
       return saved;
-    } catch (err) { this.rethrow(err, 'update setting'); }
+    } catch (err) { return this.rethrow(err, 'update setting'); }
   }
 
   async remove(id: string, actorId?: string): Promise<void> {
@@ -82,7 +82,7 @@ export class SystemSettingsService {
         actorId: actorId ?? null,
         before: { key: setting.key, value: setting.value },
       });
-    } catch (err) { this.rethrow(err, 'remove setting'); }
+    } catch (err) { return this.rethrow(err, 'remove setting'); }
   }
 
   private rethrow(err: unknown, context: string): never {

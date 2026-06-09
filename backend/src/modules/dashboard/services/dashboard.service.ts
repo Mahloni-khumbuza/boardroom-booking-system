@@ -92,10 +92,7 @@ export class DashboardService {
         bookingsThisWeek,
         upcomingBookings: upcoming.map((b) => this.toUpcoming(b)),
       };
-    } catch (err) {
-      this.logger.error('Unexpected error in getAdminStats', err instanceof Error ? err.stack : String(err));
-      throw new InternalServerErrorException('An unexpected error occurred');
-    }
+    } catch (err) { return this.rethrow(err, 'getAdminStats'); }
   }
 
   async getEmployeeStats(userId: string): Promise<EmployeeDashboardStatsDto> {
@@ -123,10 +120,12 @@ export class DashboardService {
         upcomingBookings: upcoming.map((b) => this.toUpcoming(b)),
         unreadNotifications: unread,
       };
-    } catch (err) {
-      this.logger.error('Unexpected error in getEmployeeStats', err instanceof Error ? err.stack : String(err));
-      throw new InternalServerErrorException('An unexpected error occurred');
-    }
+    } catch (err) { return this.rethrow(err, 'getEmployeeStats'); }
+  }
+
+  private rethrow(err: unknown, context: string): never {
+    this.logger.error(`Unexpected error in ${context}`, err instanceof Error ? err.stack : String(err));
+    throw new InternalServerErrorException('An unexpected error occurred');
   }
 
   async getRoomUtilisation(query: ReportingQueryDto = {}): Promise<RoomUtilisationDto[]> {

@@ -17,7 +17,7 @@ export class AmenitiesService {
   async findAll(): Promise<Amenity[]> {
     try {
       return await this.amenitiesRepository.find({ order: { name: 'ASC' } });
-    } catch (err) { this.rethrow(err, 'findAll amenities'); }
+    } catch (err) { return this.rethrow(err, 'findAll amenities'); }
   }
 
   async findOne(id: string): Promise<Amenity> {
@@ -25,7 +25,7 @@ export class AmenitiesService {
       const amenity = await this.amenitiesRepository.findOne({ where: { id } });
       if (!amenity) throw new NotFoundException(`Amenity ${id} not found`);
       return amenity;
-    } catch (err) { this.rethrow(err, 'findOne amenity'); }
+    } catch (err) { return this.rethrow(err, 'findOne amenity'); }
   }
 
   async create(dto: CreateAmenityDto): Promise<Amenity> {
@@ -38,7 +38,7 @@ export class AmenitiesService {
         icon: dto.icon ?? null,
       });
       return await this.amenitiesRepository.save(amenity);
-    } catch (err) { this.rethrow(err, 'create amenity'); }
+    } catch (err) { return this.rethrow(err, 'create amenity'); }
   }
 
   async update(id: string, dto: UpdateAmenityDto): Promise<Amenity> {
@@ -52,14 +52,14 @@ export class AmenitiesService {
       if (dto.description !== undefined) amenity.description = dto.description;
       if (dto.icon !== undefined) amenity.icon = dto.icon;
       return await this.amenitiesRepository.save(amenity);
-    } catch (err) { this.rethrow(err, 'update amenity'); }
+    } catch (err) { return this.rethrow(err, 'update amenity'); }
   }
 
   async remove(id: string): Promise<void> {
     try {
       const result = await this.amenitiesRepository.delete(id);
       if (result.affected === 0) throw new NotFoundException(`Amenity ${id} not found`);
-    } catch (err) { this.rethrow(err, 'remove amenity'); }
+    } catch (err) { return this.rethrow(err, 'remove amenity'); }
   }
 
   private rethrow(err: unknown, context: string): never {
