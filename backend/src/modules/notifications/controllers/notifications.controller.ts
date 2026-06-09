@@ -22,6 +22,7 @@ import {
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Permissions } from '../../../shared/decorators/permissions.decorator';
 import { PermissionsGuard } from '../../../shared/guards/permissions.guard';
+import { Permission } from '../../../shared/constants/permissions';
 import { CreateNotificationDto } from '../dto/create-notification.dto';
 import {
   NotificationResponseDto,
@@ -41,7 +42,7 @@ export class NotificationsController {
   constructor(private readonly service: NotificationsService) {}
 
   @Get()
-  @Permissions('notifications:read')
+  @Permissions(Permission.NOTIFICATIONS_READ)
   @ApiOperation({ summary: 'List notifications for current user', operationId: 'listNotifications' })
   @ApiOkResponse({ type: [NotificationResponseDto] })
   list(@Req() req: AuthedRequest): Promise<NotificationResponseDto[]> {
@@ -49,7 +50,7 @@ export class NotificationsController {
   }
 
   @Get('unread-count')
-  @Permissions('notifications:read')
+  @Permissions(Permission.NOTIFICATIONS_READ)
   @ApiOperation({ summary: 'Get unread notification count', operationId: 'getUnreadCount' })
   @ApiOkResponse({ type: UnreadCountResponseDto })
   async unreadCount(@Req() req: AuthedRequest): Promise<UnreadCountResponseDto> {
@@ -57,7 +58,7 @@ export class NotificationsController {
   }
 
   @Post()
-  @Permissions('notifications:write')
+  @Permissions(Permission.NOTIFICATIONS_WRITE)
   @ApiOperation({ summary: 'Send a notification', operationId: 'createNotification' })
   @ApiCreatedResponse({ type: NotificationResponseDto })
   create(@Body() dto: CreateNotificationDto): Promise<NotificationResponseDto> {
@@ -66,7 +67,7 @@ export class NotificationsController {
 
   @Post(':id/read')
   @HttpCode(HttpStatus.OK)
-  @Permissions('notifications:read')
+  @Permissions(Permission.NOTIFICATIONS_READ)
   @ApiOperation({ summary: 'Mark notification as read', operationId: 'markNotificationRead' })
   @ApiOkResponse({ type: NotificationResponseDto })
   markRead(
@@ -78,7 +79,7 @@ export class NotificationsController {
 
   @Post('read-all')
   @HttpCode(HttpStatus.OK)
-  @Permissions('notifications:read')
+  @Permissions(Permission.NOTIFICATIONS_READ)
   @ApiOperation({ summary: 'Mark all notifications as read', operationId: 'markAllNotificationsRead' })
   @ApiOkResponse({ schema: { properties: { updated: { type: 'number' } } } })
   markAllRead(@Req() req: AuthedRequest): Promise<{ updated: number }> {
@@ -87,7 +88,7 @@ export class NotificationsController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @Permissions('notifications:read')
+  @Permissions(Permission.NOTIFICATIONS_READ)
   @ApiOperation({ summary: 'Delete a notification', operationId: 'deleteNotification' })
   @ApiNoContentResponse()
   remove(

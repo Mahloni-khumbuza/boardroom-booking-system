@@ -83,6 +83,33 @@ export class EnvironmentVariables {
   @IsString()
   @IsOptional()
   SUPER_ADMIN_LAST_NAME: string = 'Admin';
+
+  // Mail (all optional — system degrades gracefully when not configured)
+  @IsString()
+  @IsOptional()
+  MAIL_HOST?: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  @IsOptional()
+  MAIL_PORT?: number = 587;
+
+  @IsString()
+  @IsOptional()
+  MAIL_USER?: string;
+
+  @IsString()
+  @IsOptional()
+  MAIL_PASS?: string;
+
+  @IsString()
+  @IsOptional()
+  MAIL_FROM?: string;
+
+  @IsBooleanString()
+  @IsOptional()
+  MAIL_SECURE?: string = 'false';
 }
 
 export function validateEnv(config: Record<string, unknown>): EnvironmentVariables {
