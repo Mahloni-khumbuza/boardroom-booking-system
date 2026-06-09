@@ -1,36 +1,71 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
+import { FormBuilder, FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MatTabsModule } from '@angular/material/tabs';
+import { forkJoin } from 'rxjs';
 
-import { Boardroom } from '../../boardrooms/models/boardroom.model';
+import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
+import { DialogService } from '../../../core/services/dialog.service';
+import { ToastService } from '../../../core/services/toast.service';
+import { Amenity, Boardroom } from '../../boardrooms/models/boardroom.model';
 import { BoardroomsService } from '../../boardrooms/services/boardrooms.service';
 import { Booking, BookingStatus } from '../../bookings/models/booking.model';
 import { BookingsService } from '../../bookings/services/bookings.service';
-import { forkJoin } from 'rxjs';
 
 const STATUS_LABELS: Record<BookingStatus, string> = {
-  pending: 'Pending',
+  pending: 'Pending Approval',
   confirmed: 'Confirmed',
   cancelled: 'Cancelled',
   completed: 'Completed'
 };
 
+const MEETING_TYPES = [
+  { value: 'internal', label: 'Internal' },
+  { value: 'external', label: 'External' },
+  { value: 'interview', label: 'Interview' },
+  { value: 'training', label: 'Training' },
+  { value: 'board', label: 'Board Meeting' },
+  { value: 'other', label: 'Other' },
+];
+
+function roundedNow(intervalMinutes: number): Date {
+  const d = new Date();
+  d.setMinutes(Math.ceil(d.getMinutes() / intervalMinutes) * intervalMinutes, 0, 0);
+  return d;
+}
+
+function toLocalInput(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 @Component({
   selector: 'app-facilities-bookings-page',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, ReactiveFormsModule, MatTabsModule, SpinnerComponent],
   templateUrl: './facilities-bookings.page.html',
   styleUrl: './facilities-bookings.page.css'
 })
 export class FacilitiesBookingsPage {
+  private readonly fb = inject(FormBuilder);
   private readonly bookingsService = inject(BookingsService);
   private readonly boardroomsService = inject(BoardroomsService);
+  private readonly toast = inject(ToastService);
+  private readonly dialog = inject(DialogService);
 
   readonly bookings = signal<Booking[]>([]);
   readonly boardrooms = signal<Boardroom[]>([]);
   readonly loading = signal(false);
+  readonly saving = signal(false);
   readonly error = signal<string | null>(null);
+  readonly showCreate = signal(false);
+  readonly editingId = signal<string | null>(null);
+  readonly busyId = signal<string | null>(null);
+  readonly selectedAmenityIds = signal<Set<string>>(new Set());
+  readonly selectedBoardroomId = signal<string>('');
   readonly boardroomFilter = signal('');
   readonly statusFilter = signal<BookingStatus | ''>('');
+  readonly meetingTypes = MEETING_TYPES;
 
   readonly filtered = computed(() => {
     let list = this.bookings();
@@ -49,7 +84,44 @@ export class FacilitiesBookingsPage {
     });
   });
 
-  constructor() { this.refresh(); }
+  readonly selectedBoardroom = computed<Boardroom | null>(() =>
+    this.boardrooms().find((r) => r.id === this.selectedBoardroomId()) ?? null
+  );
+
+  readonly availableAmenities = computed<Amenity[]>(
+    () => this.selectedBoardroom()?.amenities ?? []
+  );
+
+  readonly upcomingBookings = computed(() =>
+    this.bookings().filter((b) => (b.status === 'confirmed' || b.status === 'pending') && new Date(b.endTime) >= new Date())
+  );
+  readonly pendingBookings = computed(() => this.bookings().filter((b) => b.status === 'pending'));
+  readonly pastBookings = computed(() =>
+    this.bookings().filter((b) => b.status === 'completed' || (b.status === 'confirmed' && new Date(b.endTime) < new Date()))
+  );
+  readonly cancelledBookings = computed(() => this.bookings().filter((b) => b.status === 'cancelled'));
+
+  readonly form = this.fb.nonNullable.group({
+    title:           ['', [Validators.required, Validators.minLength(2), Validators.maxLength(200)]],
+    description:     [''],
+    boardroomId:     ['', [Validators.required]],
+    startTime:       ['', [Validators.required]],
+    endTime:         ['', [Validators.required]],
+    attendeeCount:   new FormControl<number>(1, { nonNullable: true, validators: [Validators.required, Validators.min(1)] }),
+    meetingType:     ['internal'],
+    requiresCatering:[false],
+    cateringNotes:   [''],
+    requiresSetup:   [false],
+    setupNotes:      [''],
+  });
+
+  constructor() {
+    this.refresh();
+    this.form.controls.boardroomId.valueChanges.subscribe((id) => {
+      this.selectedBoardroomId.set(id);
+      this.selectedAmenityIds.set(new Set());
+    });
+  }
 
   refresh(): void {
     this.loading.set(true);
@@ -67,11 +139,112 @@ export class FacilitiesBookingsPage {
     });
   }
 
-  statusLabel(s: BookingStatus): string { return STATUS_LABELS[s]; }
+  openCreate(): void {
+    this.editingId.set(null);
+    const start = roundedNow(60);
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
+    this.form.reset({
+      title: '', description: '', boardroomId: '',
+      startTime: toLocalInput(start), endTime: toLocalInput(end),
+      attendeeCount: 1, meetingType: 'internal',
+      requiresCatering: false, cateringNotes: '',
+      requiresSetup: false, setupNotes: '',
+    });
+    this.form.controls.boardroomId.enable();
+    this.selectedAmenityIds.set(new Set());
+    this.selectedBoardroomId.set('');
+    this.showCreate.set(true);
+  }
 
-  bookerName(b: Booking): string {
+  closeForm(): void {
+    this.showCreate.set(false);
+    this.editingId.set(null);
+    this.form.controls.boardroomId.enable();
+  }
+
+  toggleAmenity(id: string): void {
+    const set = new Set(this.selectedAmenityIds());
+    set.has(id) ? set.delete(id) : set.add(id);
+    this.selectedAmenityIds.set(set);
+  }
+
+  isAmenitySelected(id: string): boolean {
+    return this.selectedAmenityIds().has(id);
+  }
+
+  submitForm(): void {
+    if (this.form.invalid || this.saving()) {
+      this.form.markAllAsTouched();
+      return;
+    }
+    this.saving.set(true);
+    this.error.set(null);
+    const raw = this.form.getRawValue();
+    const amenityIds = Array.from(this.selectedAmenityIds());
+
+    this.bookingsService.create({
+      title:               raw.title.trim(),
+      description:         raw.description?.trim() || undefined,
+      boardroomId:         raw.boardroomId,
+      startTime:           new Date(raw.startTime).toISOString(),
+      endTime:             new Date(raw.endTime).toISOString(),
+      attendeeCount:       Number(raw.attendeeCount),
+      meetingType:         raw.meetingType as any,
+      requiresCatering:    raw.requiresCatering,
+      cateringNotes:       raw.cateringNotes?.trim() || undefined,
+      requiresSetup:       raw.requiresSetup,
+      setupNotes:          raw.setupNotes?.trim() || undefined,
+      requestedAmenityIds: amenityIds.length > 0 ? amenityIds : undefined,
+    }).subscribe({
+      next: () => {
+        this.saving.set(false);
+        this.closeForm();
+        this.refresh();
+        this.toast.success('Booking created successfully.');
+      },
+      error: (err) => {
+        this.error.set(this.errorMessage(err));
+        this.saving.set(false);
+      }
+    });
+  }
+
+  cancel(booking: Booking): void {
+    this.dialog.confirm({
+      title: 'Cancel Booking',
+      message: `Cancel "${booking.title}"? This cannot be undone.`,
+      confirmLabel: 'Cancel Booking',
+      danger: true,
+    }).subscribe((confirmed) => {
+      if (!confirmed) return;
+      this.busyId.set(booking.id);
+      this.bookingsService.cancel(booking.id).subscribe({
+        next: (updated) => { this.replaceOne(updated); this.toast.success('Booking cancelled.'); },
+        error: () => this.busyId.set(null)
+      });
+    });
+  }
+
+  approve(booking: Booking): void {
+    this.busyId.set(booking.id);
+    this.bookingsService.approve(booking.id).subscribe({
+      next: (updated) => { this.replaceOne(updated); this.toast.success('Booking approved.'); },
+      error: () => this.busyId.set(null)
+    });
+  }
+
+  canApprove(b: Booking): boolean { return b.status === 'pending' && new Date(b.endTime) >= new Date(); }
+  canCancel(b: Booking): boolean  { return b.status !== 'cancelled' && b.status !== 'completed' && new Date(b.endTime) >= new Date(); }
+
+  statusLabel(s: BookingStatus): string { return STATUS_LABELS[s]; }
+  bookerLabel(b: Booking): string {
     if (!b.bookedBy) return '—';
     return `${b.bookedBy.firstName} ${b.bookedBy.lastName}`.trim() || b.bookedBy.email;
+  }
+
+  private replaceOne(updated: Booking): void {
+    this.bookings.update((list) => list.map((b) => (b.id === updated.id ? updated : b)));
+    this.busyId.set(null);
   }
 
   private errorMessage(err: unknown): string {

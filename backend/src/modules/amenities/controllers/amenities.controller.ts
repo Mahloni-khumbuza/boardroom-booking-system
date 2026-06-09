@@ -22,6 +22,7 @@ import {
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Permissions } from '../../../shared/decorators/permissions.decorator';
 import { PermissionsGuard } from '../../../shared/guards/permissions.guard';
+import { Permission } from '../../../shared/constants/permissions';
 import { CreateAmenityDto } from '../dto/create-amenity.dto';
 import { AmenityResponseDto } from '../dto/amenity-response.dto';
 import { UpdateAmenityDto } from '../dto/update-amenity.dto';
@@ -35,7 +36,7 @@ export class AmenitiesController {
   constructor(private readonly amenitiesService: AmenitiesService) {}
 
   @Get()
-  @Permissions('amenities:read')
+  @Permissions(Permission.AMENITIES_READ)
   @ApiOperation({ summary: 'List all amenities', operationId: 'listAmenities' })
   @ApiOkResponse({ type: [AmenityResponseDto] })
   findAll(): Promise<AmenityResponseDto[]> {
@@ -43,7 +44,7 @@ export class AmenitiesController {
   }
 
   @Get(':id')
-  @Permissions('amenities:read')
+  @Permissions(Permission.AMENITIES_READ)
   @ApiOperation({ summary: 'Get amenity by ID', operationId: 'getAmenity' })
   @ApiOkResponse({ type: AmenityResponseDto })
   findOne(@Param('id', new ParseUUIDPipe()) id: string): Promise<AmenityResponseDto> {
@@ -51,7 +52,7 @@ export class AmenitiesController {
   }
 
   @Post()
-  @Permissions('amenities:write')
+  @Permissions(Permission.AMENITIES_WRITE)
   @ApiOperation({ summary: 'Create an amenity', operationId: 'createAmenity' })
   @ApiCreatedResponse({ type: AmenityResponseDto })
   create(@Body() dto: CreateAmenityDto): Promise<AmenityResponseDto> {
@@ -59,7 +60,7 @@ export class AmenitiesController {
   }
 
   @Patch(':id')
-  @Permissions('amenities:write')
+  @Permissions(Permission.AMENITIES_WRITE)
   @ApiOperation({ summary: 'Update an amenity', operationId: 'updateAmenity' })
   @ApiOkResponse({ type: AmenityResponseDto })
   update(
@@ -70,7 +71,7 @@ export class AmenitiesController {
   }
 
   @Delete(':id')
-  @Permissions('amenities:delete')
+  @Permissions(Permission.AMENITIES_DELETE)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete an amenity', operationId: 'deleteAmenity' })
   @ApiNoContentResponse()

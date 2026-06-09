@@ -1,87 +1,276 @@
-<div class="page">
-  <div class="page-header">
-    <div>
+<section class="page">
+
+  <!-- Header -->
+  <header class="page-head">
+    <div class="page-head-text">
       <h1>Bookings</h1>
-      <p class="lede">All upcoming bookings — read-only view for room readiness planning.</p>
+      <p class="lede">All bookings across the organisation. Create and manage bookings for room readiness.</p>
     </div>
-    <button class="btn btn-ghost" (click)="refresh()" [disabled]="loading()">Refresh</button>
-  </div>
+    @if (!showCreate()) {
+      <div class="page-head-actions">
+        <button class="btn-new" (click)="openCreate()">+ New Booking</button>
+      </div>
+    }
+  </header>
 
-  @if (error()) {
-    <div class="alert alert-error">{{ error() }}</div>
+  @if (error(); as err) {
+    <div class="alert-error">{{ err }}</div>
   }
 
-  <div class="summary-bar">
-    <span class="summary-item">
-      <strong>{{ todayBookings().length }}</strong> booking{{ todayBookings().length === 1 ? '' : 's' }} today
-    </span>
-    <span class="summary-item">
-      <strong>{{ filtered().length }}</strong> total shown
-    </span>
-  </div>
+  <!-- ── Booking form (identical to main bookings page) ─────────────────── -->
+  @if (showCreate()) {
+    <div class="form-card">
+      <div class="form-card-header">
+        <div>
+          <h2 class="form-card-title">New Booking</h2>
+          <p class="form-card-sub">Fill in the details below. Fields marked * are required.</p>
+        </div>
+        <button class="btn-close" type="button" (click)="closeForm()" title="Close">&#x2715;</button>
+      </div>
 
-  <div class="filters">
-    <select (change)="boardroomFilter.set($any($event.target).value)">
-      <option value="">All rooms</option>
-      @for (r of boardrooms(); track r.id) {
-        <option [value]="r.id">{{ r.name }}</option>
-      }
-    </select>
-    <select (change)="statusFilter.set($any($event.target).value)">
-      <option value="">All statuses</option>
-      <option value="pending">Pending</option>
-      <option value="confirmed">Confirmed</option>
-      <option value="cancelled">Cancelled</option>
-      <option value="completed">Completed</option>
-    </select>
-  </div>
+      <form [formGroup]="form" (ngSubmit)="submitForm()" novalidate>
 
-  @if (loading()) {
-    <p class="loading">Loading bookings…</p>
-  } @else if (filtered().length === 0) {
-    <div class="empty">No bookings match the current filters.</div>
-  } @else {
-    <div class="card">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Title</th>
-            <th>Room</th>
-            <th>Booked By</th>
-            <th>Start</th>
-            <th>End</th>
-            <th>Attendees</th>
-            <th>Status</th>
-            <th>Amenities</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (b of filtered(); track b.id) {
-            <tr [class.today]="todayBookings().includes(b)">
-              <td><strong>{{ b.title }}</strong></td>
-              <td>{{ b.boardroom.name }}</td>
-              <td class="muted">{{ bookerName(b) }}</td>
-              <td class="muted">{{ b.startTime | date:'dd MMM, HH:mm' }}</td>
-              <td class="muted">{{ b.endTime | date:'HH:mm' }}</td>
-              <td class="center">{{ b.attendeeCount }}</td>
-              <td>
-                <span class="badge badge-{{ b.status }}">{{ statusLabel(b.status) }}</span>
-              </td>
-              <td>
-                @if (b.requestedAmenities.length) {
-                  <div class="chip-list">
-                    @for (a of b.requestedAmenities; track a.id) {
-                      <span class="chip">{{ a.name }}</span>
-                    }
-                  </div>
-                } @else {
-                  <span class="muted">—</span>
-                }
-              </td>
-            </tr>
+        <!-- Row 1: Title + Meeting type -->
+        <div class="f-row">
+          <label class="f-field f-grow">
+            <span class="f-label">Title *</span>
+            <input type="text" formControlName="title" maxlength="200" placeholder="e.g. Q3 Planning Session" />
+            @if (form.controls.title.touched && form.controls.title.invalid) {
+              <span class="f-error">Title is required (2–200 characters).</span>
+            }
+          </label>
+          <label class="f-field f-medium">
+            <span class="f-label">Meeting type</span>
+            <select formControlName="meetingType">
+              @for (t of meetingTypes; track t.value) {
+                <option [value]="t.value">{{ t.label }}</option>
+              }
+            </select>
+          </label>
+        </div>
+
+        <!-- Row 2: Boardroom -->
+        <label class="f-field">
+          <span class="f-label">Boardroom *</span>
+          <select formControlName="boardroomId">
+            <option value="" disabled>Select a boardroom…</option>
+            @for (r of boardrooms(); track r.id) {
+              <option [value]="r.id">{{ r.name }} ({{ r.capacity }} seats)</option>
+            }
+          </select>
+          @if (form.controls.boardroomId.touched && form.controls.boardroomId.invalid) {
+            <span class="f-error">Please select a boardroom.</span>
           }
-        </tbody>
-      </table>
+        </label>
+
+        <!-- Row 3: Start / End / Attendees -->
+        <div class="f-row">
+          <label class="f-field f-grow">
+            <span class="f-label">Start *</span>
+            <input type="datetime-local" formControlName="startTime" />
+          </label>
+          <label class="f-field f-grow">
+            <span class="f-label">End *</span>
+            <input type="datetime-local" formControlName="endTime" />
+          </label>
+          <label class="f-field f-small">
+            <span class="f-label">
+              Attendees *
+              @if (selectedBoardroom(); as r) {
+                <span class="f-hint-inline">(max {{ r.capacity }})</span>
+              }
+            </span>
+            <input type="number" formControlName="attendeeCount" min="1" />
+            @if (form.controls.attendeeCount.touched && form.controls.attendeeCount.invalid) {
+              <span class="f-error">At least 1 attendee required.</span>
+            }
+          </label>
+        </div>
+
+        <!-- Amenities -->
+        @if (selectedBoardroom() && availableAmenities().length > 0) {
+          <div class="f-field">
+            <span class="f-label">Requested amenities <span class="f-optional">(optional)</span></span>
+            <div class="chip-list">
+              @for (a of availableAmenities(); track a.id) {
+                <button type="button" class="chip" [class.selected]="isAmenitySelected(a.id)" (click)="toggleAmenity(a.id)">
+                  {{ a.name }}
+                </button>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Description -->
+        <label class="f-field">
+          <span class="f-label">Description <span class="f-optional">(optional)</span></span>
+          <textarea formControlName="description" rows="2" maxlength="2000" placeholder="Agenda, purpose or additional notes…"></textarea>
+        </label>
+
+        <!-- Catering / Setup toggles -->
+        <div class="f-toggles">
+          <div class="f-toggle-group">
+            <label class="f-toggle">
+              <input type="checkbox" formControlName="requiresCatering" />
+              <div class="f-toggle-text">
+                <strong>Catering required</strong>
+                <span>Notify facilities to arrange food and beverages</span>
+              </div>
+            </label>
+            @if (form.controls.requiresCatering.value) {
+              <label class="f-field f-indent">
+                <span class="f-label">Catering notes</span>
+                <textarea formControlName="cateringNotes" rows="2" maxlength="2000"
+                  placeholder="e.g. 10 sandwiches, coffee for 10 people…"></textarea>
+              </label>
+            }
+          </div>
+          <div class="f-toggle-group">
+            <label class="f-toggle">
+              <input type="checkbox" formControlName="requiresSetup" />
+              <div class="f-toggle-text">
+                <strong>Room setup required</strong>
+                <span>Notify facilities to configure the room layout</span>
+              </div>
+            </label>
+            @if (form.controls.requiresSetup.value) {
+              <label class="f-field f-indent">
+                <span class="f-label">Setup notes</span>
+                <textarea formControlName="setupNotes" rows="2" maxlength="2000"
+                  placeholder="e.g. U-shape seating, projector screen, whiteboard…"></textarea>
+              </label>
+            }
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="f-actions">
+          <button type="button" class="btn-secondary" (click)="closeForm()">Cancel</button>
+          <button type="submit" class="btn-primary" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : 'Create booking' }}
+          </button>
+        </div>
+      </form>
     </div>
   }
-</div>
+
+  <!-- ── Summary + Filters ──────────────────────────────────────────────── -->
+  @if (!showCreate()) {
+    <div class="summary-bar">
+      <span class="summary-item"><strong>{{ todayBookings().length }}</strong> today</span>
+      <span class="summary-item"><strong>{{ filtered().length }}</strong> total shown</span>
+    </div>
+
+    <div class="filters">
+      <select (change)="boardroomFilter.set($any($event.target).value)">
+        <option value="">All rooms</option>
+        @for (r of boardrooms(); track r.id) {
+          <option [value]="r.id">{{ r.name }}</option>
+        }
+      </select>
+      <select (change)="statusFilter.set($any($event.target).value)">
+        <option value="">All statuses</option>
+        <option value="pending">Pending</option>
+        <option value="confirmed">Confirmed</option>
+        <option value="cancelled">Cancelled</option>
+        <option value="completed">Completed</option>
+      </select>
+    </div>
+
+    <!-- ── Tabs ──────────────────────────────────────────────────────────── -->
+    @if (loading()) {
+      <app-spinner label="Loading bookings…" />
+    } @else {
+      <mat-tab-group animationDuration="150ms" class="bookings-tabs">
+
+        <mat-tab>
+          <ng-template mat-tab-label>
+            Upcoming
+            @if (upcomingBookings().length) { <span class="tab-badge">{{ upcomingBookings().length }}</span> }
+          </ng-template>
+          <ng-template matTabContent>
+            <div class="tab-body">
+              @if (upcomingBookings().length === 0) {
+                <div class="empty-state"><p class="empty-title">No upcoming bookings</p></div>
+              } @else {
+                <ng-container *ngTemplateOutlet="bookingsTable; context: { list: upcomingBookings() }" />
+              }
+            </div>
+          </ng-template>
+        </mat-tab>
+
+        <mat-tab>
+          <ng-template mat-tab-label>
+            Pending Approval
+            @if (pendingBookings().length) { <span class="tab-badge tab-badge-amber">{{ pendingBookings().length }}</span> }
+          </ng-template>
+          <ng-template matTabContent>
+            <div class="tab-body">
+              @if (pendingBookings().length === 0) {
+                <div class="empty-state"><p class="empty-title">No pending approvals</p></div>
+              } @else {
+                <ng-container *ngTemplateOutlet="bookingsTable; context: { list: pendingBookings() }" />
+              }
+            </div>
+          </ng-template>
+        </mat-tab>
+
+        <mat-tab label="Cancelled">
+          <ng-template matTabContent>
+            <div class="tab-body">
+              @if (cancelledBookings().length === 0) {
+                <div class="empty-state"><p class="empty-title">No cancelled bookings</p></div>
+              } @else {
+                <ng-container *ngTemplateOutlet="bookingsTable; context: { list: cancelledBookings() }" />
+              }
+            </div>
+          </ng-template>
+        </mat-tab>
+
+      </mat-tab-group>
+    }
+  }
+</section>
+
+<!-- Shared table template -->
+<ng-template #bookingsTable let-list="list">
+  <table class="b-table">
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Boardroom</th>
+        <th>Date &amp; Time</th>
+        <th>Attendees</th>
+        <th>Booked by</th>
+        <th>Status</th>
+        <th class="th-actions"></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (b of list; track b.id) {
+        <tr>
+          <td class="td-title">
+            <strong>{{ b.title }}</strong>
+            @if (b.description) { <div class="td-sub">{{ b.description }}</div> }
+          </td>
+          <td class="td-muted">{{ b.boardroom.name }}</td>
+          <td class="td-time">
+            {{ b.startTime | date:'dd MMM yyyy' }}<br/>
+            <span class="td-sub">{{ b.startTime | date:'HH:mm' }} – {{ b.endTime | date:'HH:mm' }}</span>
+          </td>
+          <td class="td-center">{{ b.attendeeCount }}<span class="td-cap">/{{ b.boardroom.capacity }}</span></td>
+          <td class="td-muted">{{ bookerLabel(b) }}</td>
+          <td><span class="badge badge-{{ b.status }}">{{ statusLabel(b.status) }}</span></td>
+          <td class="td-actions">
+            @if (canApprove(b)) {
+              <button class="btn-action btn-action-primary" [disabled]="busyId() === b.id" (click)="approve(b)">Approve</button>
+            }
+            @if (canCancel(b)) {
+              <button class="btn-action btn-action-danger" [disabled]="busyId() === b.id" (click)="cancel(b)">Cancel</button>
+            }
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</ng-template>

@@ -16,7 +16,7 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Authenticate a user with email and password.' })
+  @ApiOperation({ summary: 'Authenticate a user with email and password.', operationId: 'login' })
   @ApiOkResponse({ type: LoginResponseDto })
   @ApiUnauthorizedResponse({ description: 'Invalid email or password.' })
   login(@Body() dto: LoginDto): Promise<LoginResponseDto> {

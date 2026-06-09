@@ -3,6 +3,11 @@ import { Type } from 'class-transformer';
 import { IsInt, IsISO8601, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 
 export class AuditLogQueryDto {
+  @ApiPropertyOptional({ description: 'Filter by action keyword (e.g. "booking.created", "boardroom_block")' })
+  @IsOptional()
+  @IsString()
+  action?: string;
+
   @ApiPropertyOptional({ description: 'Filter by entity name (e.g. "user", "booking")' })
   @IsOptional()
   @IsString()

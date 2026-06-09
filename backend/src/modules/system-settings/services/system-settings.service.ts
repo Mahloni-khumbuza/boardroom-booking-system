@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, InternalServerErrorException, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { AuditLogsService } from '../../audit-logs/services/audit-logs.service';
 import { SystemSetting } from '../entities/system-setting.entity';
 import { CreateSystemSettingDto } from '../dto/create-system-setting.dto';
 import { UpdateSystemSettingDto } from '../dto/update-system-setting.dto';
@@ -12,6 +13,7 @@ export class SystemSettingsService {
   constructor(
     @InjectRepository(SystemSetting)
     private readonly repo: Repository<SystemSetting>,
+    private readonly auditLogs: AuditLogsService,
   ) {}
 
   async findAll(): Promise<SystemSetting[]> {
@@ -32,28 +34,54 @@ export class SystemSettingsService {
     return this.repo.findOne({ where: { key } });
   }
 
-  async create(dto: CreateSystemSettingDto): Promise<SystemSetting> {
+  async create(dto: CreateSystemSettingDto, actorId?: string): Promise<SystemSetting> {
     try {
       const clash = await this.repo.findOne({ where: { key: dto.key } });
       if (clash) throw new ConflictException(`Setting "${dto.key}" already exists`);
       const setting = this.repo.create({ key: dto.key, value: dto.value ?? null, description: dto.description ?? null });
-      return await this.repo.save(setting);
+      const saved = await this.repo.save(setting);
+      await this.auditLogs.record({
+        action: 'system_setting.created',
+        entity: 'system_setting',
+        entityId: saved.id,
+        actorId: actorId ?? null,
+        after: { key: saved.key, value: saved.value },
+      });
+      return saved;
     } catch (err) { this.rethrow(err, 'create setting'); }
   }
 
-  async update(id: string, dto: UpdateSystemSettingDto): Promise<SystemSetting> {
+  async update(id: string, dto: UpdateSystemSettingDto, actorId?: string): Promise<SystemSetting> {
     try {
       const setting = await this.findOne(id);
+      const before = { key: setting.key, value: setting.value };
       if (dto.value !== undefined) setting.value = dto.value;
       if (dto.description !== undefined) setting.description = dto.description;
-      return await this.repo.save(setting);
+      const saved = await this.repo.save(setting);
+      await this.auditLogs.record({
+        action: 'system_setting.updated',
+        entity: 'system_setting',
+        entityId: id,
+        actorId: actorId ?? null,
+        before,
+        after: { key: saved.key, value: saved.value },
+      });
+      return saved;
     } catch (err) { this.rethrow(err, 'update setting'); }
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, actorId?: string): Promise<void> {
     try {
-      const result = await this.repo.delete(id);
-      if (result.affected === 0) throw new NotFoundException(`Setting ${id} not found`);
+      const setting = await this.repo.findOne({ where: { id } });
+      if (!setting) throw new NotFoundException(`Setting ${id} not found`);
+      await this.repo.delete(id);
+      await this.auditLogs.record({
+        action: 'system_setting.removed',
+        entity: 'system_setting',
+        entityId: id,
+        actorId: actorId ?? null,
+        before: { key: setting.key, value: setting.value },
+      });
     } catch (err) { this.rethrow(err, 'remove setting'); }
   }
 
