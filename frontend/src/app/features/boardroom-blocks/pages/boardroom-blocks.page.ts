@@ -159,6 +159,22 @@ export class BoardroomBlocksPage {
     });
   }
 
+  // ── Activate / Deactivate ─────────────────────────────────────────────────
+
+  toggleActive(block: BoardroomBlock): void {
+    const action$ = block.isActive
+      ? this.service.deactivate(block.id)
+      : this.service.activate(block.id);
+
+    action$.subscribe({
+      next: (updated) => {
+        this.blocks.update((list) => list.map((b) => (b.id === updated.id ? updated : b)));
+        this.toast.success(updated.isActive ? 'Block activated.' : 'Block deactivated.');
+      },
+      error: (err) => this.error.set(this.errorMessage(err))
+    });
+  }
+
   // ── Delete ────────────────────────────────────────────────────────────────
 
   remove(block: BoardroomBlock): void {

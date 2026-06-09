@@ -26,6 +26,14 @@ export class BoardroomBlocksService {
     return this.http.patch<BoardroomBlock>(`${this.url}/${id}`, payload);
   }
 
+  activate(id: string): Observable<BoardroomBlock> {
+    return this.http.post<BoardroomBlock>(`${this.url}/${id}/activate`, {});
+  }
+
+  deactivate(id: string): Observable<BoardroomBlock> {
+    return this.http.post<BoardroomBlock>(`${this.url}/${id}/deactivate`, {});
+  }
+
   remove(id: string): Observable<void> {
     return this.http.delete<void>(`${this.url}/${id}`);
   }

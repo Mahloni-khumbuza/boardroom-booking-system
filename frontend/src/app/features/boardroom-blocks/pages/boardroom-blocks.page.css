@@ -202,8 +202,42 @@ tbody td {
   background: #f5f3ff;
 }
 
+.row-inactive td {
+  opacity: 0.55;
+}
+
 .actions {
   display: flex;
   gap: 4px;
   justify-content: flex-end;
+}
+
+/* Status badge */
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.badge-active {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.badge-inactive {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+/* Activate / deactivate link colours */
+.link-warning {
+  color: #d97706;
+}
+
+.link-success {
+  color: #16a34a;
 }

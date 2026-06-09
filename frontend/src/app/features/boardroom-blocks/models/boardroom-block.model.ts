@@ -6,9 +6,11 @@ export interface BlockBoardroomRef {
 export interface BoardroomBlock {
   id: string;
   boardroom: BlockBoardroomRef;
+  boardroomId: string;
   startTime: string;
   endTime: string;
   reason: string;
+  isActive: boolean;
   createdById: string | null;
   createdAt: string;
   updatedAt: string;

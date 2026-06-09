@@ -106,18 +106,27 @@
             <th>From</th>
             <th>To</th>
             <th>Reason</th>
+            <th>Status</th>
             <th></th>
           </tr>
         </thead>
         <tbody>
           @for (b of blocks(); track b.id) {
-            <tr [class.row-editing]="editingBlock()?.id === b.id">
+            <tr [class.row-editing]="editingBlock()?.id === b.id" [class.row-inactive]="!b.isActive">
               <td><strong>{{ b.boardroom.name }}</strong></td>
               <td class="small">{{ b.startTime | date: 'MMM d, h:mm a' }}</td>
               <td class="small">{{ b.endTime | date: 'MMM d, h:mm a' }}</td>
               <td class="muted">{{ b.reason }}</td>
+              <td>
+                <span class="badge" [class.badge-active]="b.isActive" [class.badge-inactive]="!b.isActive">
+                  {{ b.isActive ? 'Active' : 'Inactive' }}
+                </span>
+              </td>
               <td class="actions">
                 <button type="button" class="link" (click)="openEdit(b)">Edit</button>
+                <button type="button" class="link" [class.link-warning]="b.isActive" [class.link-success]="!b.isActive" (click)="toggleActive(b)">
+                  {{ b.isActive ? 'Deactivate' : 'Activate' }}
+                </button>
                 <button type="button" class="link danger" (click)="remove(b)">Delete</button>
               </td>
             </tr>

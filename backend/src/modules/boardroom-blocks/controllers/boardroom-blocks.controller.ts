@@ -24,6 +24,7 @@ import {
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Permissions } from '../../../shared/decorators/permissions.decorator';
 import { PermissionsGuard } from '../../../shared/guards/permissions.guard';
+import { Permission } from '../../../shared/constants/permissions';
 import { BoardroomBlockQueryDto } from '../dto/boardroom-block-query.dto';
 import { BoardroomBlockResponseDto } from '../dto/boardroom-block-response.dto';
 import { CreateBoardroomBlockDto } from '../dto/create-boardroom-block.dto';
@@ -42,7 +43,7 @@ export class BoardroomBlocksController {
   constructor(private readonly service: BoardroomBlocksService) {}
 
   @Get()
-  @Permissions('boardroom-blocks:read')
+  @Permissions(Permission.BOARDROOM_BLOCKS_READ)
   @ApiOperation({ summary: 'List boardroom blocks', operationId: 'listBoardroomBlocks' })
   @ApiOkResponse({ type: [BoardroomBlockResponseDto] })
   findAll(@Query() query: BoardroomBlockQueryDto): Promise<BoardroomBlockResponseDto[]> {
@@ -50,7 +51,7 @@ export class BoardroomBlocksController {
   }
 
   @Get(':id')
-  @Permissions('boardroom-blocks:read')
+  @Permissions(Permission.BOARDROOM_BLOCKS_READ)
   @ApiOperation({ summary: 'Get boardroom block by ID', operationId: 'getBoardroomBlock' })
   @ApiOkResponse({ type: BoardroomBlockResponseDto })
   findOne(@Param('id', new ParseUUIDPipe()) id: string): Promise<BoardroomBlockResponseDto> {
@@ -58,7 +59,7 @@ export class BoardroomBlocksController {
   }
 
   @Post()
-  @Permissions('boardroom-blocks:write')
+  @Permissions(Permission.BOARDROOM_BLOCKS_WRITE)
   @ApiOperation({ summary: 'Create a boardroom block', operationId: 'createBoardroomBlock' })
   @ApiCreatedResponse({ type: BoardroomBlockResponseDto })
   create(
@@ -69,22 +70,50 @@ export class BoardroomBlocksController {
   }
 
   @Patch(':id')
-  @Permissions('boardroom-blocks:write')
+  @Permissions(Permission.BOARDROOM_BLOCKS_WRITE)
   @ApiOperation({ summary: 'Update a boardroom block', operationId: 'updateBoardroomBlock' })
   @ApiOkResponse({ type: BoardroomBlockResponseDto })
   update(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateBoardroomBlockDto,
+    @Req() req: AuthedRequest,
   ): Promise<BoardroomBlockResponseDto> {
-    return this.service.update(id, dto);
+    return this.service.update(id, dto, req.user.sub);
+  }
+
+  @Post(':id/activate')
+  @HttpCode(HttpStatus.OK)
+  @Permissions(Permission.BOARDROOM_BLOCKS_WRITE)
+  @ApiOperation({ summary: 'Activate a boardroom block', operationId: 'activateBoardroomBlock' })
+  @ApiOkResponse({ type: BoardroomBlockResponseDto })
+  activate(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() req: AuthedRequest,
+  ): Promise<BoardroomBlockResponseDto> {
+    return this.service.activate(id, req.user.sub);
+  }
+
+  @Post(':id/deactivate')
+  @HttpCode(HttpStatus.OK)
+  @Permissions(Permission.BOARDROOM_BLOCKS_WRITE)
+  @ApiOperation({ summary: 'Deactivate a boardroom block', operationId: 'deactivateBoardroomBlock' })
+  @ApiOkResponse({ type: BoardroomBlockResponseDto })
+  deactivate(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() req: AuthedRequest,
+  ): Promise<BoardroomBlockResponseDto> {
+    return this.service.deactivate(id, req.user.sub);
   }
 
   @Delete(':id')
-  @Permissions('boardroom-blocks:delete')
+  @Permissions(Permission.BOARDROOM_BLOCKS_DELETE)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a boardroom block', operationId: 'deleteBoardroomBlock' })
   @ApiNoContentResponse()
-  remove(@Param('id', new ParseUUIDPipe()) id: string): Promise<void> {
-    return this.service.remove(id);
+  remove(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() req: AuthedRequest,
+  ): Promise<void> {
+    return this.service.remove(id, req.user.sub);
   }
 }

@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
+import { AuditLogsService } from '../../audit-logs/services/audit-logs.service';
 import { Boardroom } from '../../boardrooms/entities/boardroom.entity';
 import { BoardroomBlock } from '../entities/boardroom-block.entity';
 import { BoardroomBlockQueryDto } from '../dto/boardroom-block-query.dto';
@@ -18,6 +19,7 @@ export class BoardroomBlocksService {
     private readonly repo: Repository<BoardroomBlock>,
     @InjectRepository(Boardroom)
     private readonly boardroomsRepo: Repository<Boardroom>,
+    private readonly auditLogs: AuditLogsService,
   ) {}
 
   findAll(query: BoardroomBlockQueryDto = {}): Promise<BoardroomBlock[]> {
@@ -68,28 +70,79 @@ export class BoardroomBlocksService {
       createdById: actorId,
     });
     const saved = await this.repo.save(block);
+    await this.auditLogs.record({
+      action: 'boardroom_block.created',
+      entity: 'boardroom_block',
+      entityId: saved.id,
+      actorId,
+      metadata: { boardroomId: boardroom.id, reason: saved.reason, startTime: saved.startTime, endTime: saved.endTime },
+    });
     return this.findOne(saved.id);
   }
 
-  async update(id: string, dto: UpdateBoardroomBlockDto): Promise<BoardroomBlock> {
+  async update(id: string, dto: UpdateBoardroomBlockDto, actorId: string): Promise<BoardroomBlock> {
     const block = await this.findOne(id);
+    const before = { reason: block.reason, startTime: block.startTime, endTime: block.endTime, isActive: block.isActive };
     const start = dto.startTime ? new Date(dto.startTime) : block.startTime;
     const end = dto.endTime ? new Date(dto.endTime) : block.endTime;
     if (end <= start) {
       throw new BadRequestException('endTime must be after startTime');
     }
     if (dto.reason !== undefined) block.reason = dto.reason.trim();
+    if (dto.isActive !== undefined) block.isActive = dto.isActive;
     block.startTime = start;
     block.endTime = end;
     await this.repo.save(block);
+    await this.auditLogs.record({
+      action: 'boardroom_block.updated',
+      entity: 'boardroom_block',
+      entityId: id,
+      actorId,
+      before,
+      after: { reason: block.reason, startTime: block.startTime, endTime: block.endTime, isActive: block.isActive },
+    });
     return this.findOne(id);
   }
 
-  async remove(id: string): Promise<void> {
-    const result = await this.repo.delete(id);
-    if (result.affected === 0) {
-      throw new NotFoundException(`Block ${id} not found`);
-    }
+  async activate(id: string, actorId: string): Promise<BoardroomBlock> {
+    const block = await this.findOne(id);
+    if (block.isActive) return block;
+    block.isActive = true;
+    await this.repo.save(block);
+    await this.auditLogs.record({
+      action: 'boardroom_block.activated',
+      entity: 'boardroom_block',
+      entityId: id,
+      actorId,
+    });
+    return this.findOne(id);
+  }
+
+  async deactivate(id: string, actorId: string): Promise<BoardroomBlock> {
+    const block = await this.findOne(id);
+    if (!block.isActive) return block;
+    block.isActive = false;
+    await this.repo.save(block);
+    await this.auditLogs.record({
+      action: 'boardroom_block.deactivated',
+      entity: 'boardroom_block',
+      entityId: id,
+      actorId,
+    });
+    return this.findOne(id);
+  }
+
+  async remove(id: string, actorId: string): Promise<void> {
+    const block = await this.repo.findOne({ where: { id } });
+    if (!block) throw new NotFoundException(`Block ${id} not found`);
+    await this.repo.delete(id);
+    await this.auditLogs.record({
+      action: 'boardroom_block.removed',
+      entity: 'boardroom_block',
+      entityId: id,
+      actorId,
+      metadata: { reason: block.reason, boardroomId: block.boardroomId },
+    });
   }
 
   /**
