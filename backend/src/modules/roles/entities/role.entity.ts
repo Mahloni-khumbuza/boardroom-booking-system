@@ -22,9 +22,6 @@ export class Role {
   @Column({ nullable: true, type: 'text' })
   description: string | null;
 
-  @Column({ default: false, name: 'is_system_role' })
-  isSystemRole: boolean;
-
   @ManyToMany(() => Permission, (permission) => permission.roles, {
     cascade: true,
     eager: true,

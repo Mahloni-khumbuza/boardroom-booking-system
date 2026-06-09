@@ -3,6 +3,12 @@
     <h1>Boardroom Booking</h1>
     <p class="subtitle">Sign in with your work email to continue.</p>
 
+    @if (justRegistered()) {
+      <div class="success-banner" role="status">
+        Account created. Sign in with your new credentials.
+      </div>
+    }
+
     <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
       <label class="field">
         <span>Email</span>
@@ -24,18 +30,12 @@
         <div class="error-banner" role="alert">{{ err }}</div>
       }
 
-      <div class="form-footer">
-        <a class="forgot-link" href="mailto:admin@company.com?subject=Password%20Reset%20Request">
-          Forgot password?
-        </a>
-      </div>
-
       <button type="submit" [disabled]="loading()">
         {{ loading() ? 'Signing in…' : 'Sign in' }}
       </button>
 
       <p class="foot">
-        Need access? Contact your system administrator.
+        Don't have an account? <a routerLink="/register">Create one</a>
       </p>
     </form>
   </div>

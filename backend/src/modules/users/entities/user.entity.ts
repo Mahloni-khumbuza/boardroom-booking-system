@@ -26,15 +26,6 @@ export class User {
   @Column({ name: 'last_name' })
   lastName: string;
 
-  @Column({ type: 'varchar', length: 30, name: 'phone_number', nullable: true })
-  phoneNumber: string | null;
-
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  department: string | null;
-
-  @Column({ type: 'varchar', length: 100, name: 'job_title', nullable: true })
-  jobTitle: string | null;
-
   @Column({ default: true, name: 'is_active' })
   isActive: boolean;
 
