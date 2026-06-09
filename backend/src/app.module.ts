@@ -18,6 +18,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
+import { MailModule } from './modules/mail/mail.module';
 import { AllExceptionsFilter } from './shared/filters/http-exception.filter';
 
 @Module({
@@ -28,6 +29,7 @@ import { AllExceptionsFilter } from './shared/filters/http-exception.filter';
       validate: validateEnv,
     }),
     DatabaseModule,
+    MailModule,
     AuthModule,
     UsersModule,
     RolesModule,
