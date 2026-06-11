@@ -26,13 +26,27 @@ export class User {
   @Column({ name: 'last_name' })
   lastName: string;
 
-  @Column({ name: 'phone_number', nullable: true, length: 30 })
+  @Column({
+  type: 'varchar',
+  name: 'phone_number',
+  length: 30,
+  nullable: true,
+  })
   phoneNumber: string | null;
 
-  @Column({ nullable: true, length: 100 })
+  @Column({
+  type: 'varchar',
+  length: 100,
+  nullable: true,
+  })
   department: string | null;
 
-  @Column({ name: 'job_title', nullable: true, length: 100 })
+  @Column({
+  type: 'varchar',
+  name: 'job_title',
+  length: 100,
+  nullable: true,
+  })
   jobTitle: string | null;
 
   @Column({ default: true, name: 'is_active' })
