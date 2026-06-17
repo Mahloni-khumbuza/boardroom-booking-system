@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiCreatedResponse,
   ApiNoContentResponse,
   ApiOkResponse,
@@ -21,10 +22,10 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { SuperAdminGuard } from '../../../shared/guards/super-admin.guard';
+import { RolesService } from '../services/roles.service';
 import { CreateRoleDto } from '../dto/create-role.dto';
 import { RoleResponseDto } from '../dto/role-response.dto';
 import { UpdateRoleDto } from '../dto/update-role.dto';
-import { RolesService } from '../services/roles.service';
 
 @ApiTags('roles')
 @ApiBearerAuth()
@@ -50,6 +51,7 @@ export class RolesController {
   @Post()
   @UseGuards(SuperAdminGuard)
   @ApiOperation({ summary: 'Create a role', operationId: 'createRole' })
+  @ApiBody({ type: CreateRoleDto })
   @ApiCreatedResponse({ type: RoleResponseDto })
   create(@Body() dto: CreateRoleDto): Promise<RoleResponseDto> {
     return this.rolesService.create(dto);
@@ -58,6 +60,7 @@ export class RolesController {
   @Patch(':id')
   @UseGuards(SuperAdminGuard)
   @ApiOperation({ summary: 'Update a role', operationId: 'updateRole' })
+  @ApiBody({ type: UpdateRoleDto })
   @ApiOkResponse({ type: RoleResponseDto })
   update(
     @Param('id', new ParseUUIDPipe()) id: string,

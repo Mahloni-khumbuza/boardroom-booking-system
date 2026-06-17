@@ -10,11 +10,11 @@ import {
   Patch,
   Post,
   Query,
-  Req,
   UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiCreatedResponse,
   ApiNoContentResponse,
   ApiOkResponse,
@@ -22,18 +22,16 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
 import { Permissions } from '../../../shared/decorators/permissions.decorator';
 import { PermissionsGuard } from '../../../shared/guards/permissions.guard';
 import { Permission } from '../../../shared/constants/permissions';
+import type { JwtPayload } from '../../auth/services/auth.service';
+import { BoardroomBlocksService } from '../services/boardroom-blocks.service';
 import { BoardroomBlockQueryDto } from '../dto/boardroom-block-query.dto';
 import { BoardroomBlockResponseDto } from '../dto/boardroom-block-response.dto';
 import { CreateBoardroomBlockDto } from '../dto/create-boardroom-block.dto';
 import { UpdateBoardroomBlockDto } from '../dto/update-boardroom-block.dto';
-import { BoardroomBlocksService } from '../services/boardroom-blocks.service';
-
-interface AuthedRequest {
-  user: { sub: string };
-}
 
 @ApiTags('boardroom-blocks')
 @ApiBearerAuth()
@@ -61,24 +59,26 @@ export class BoardroomBlocksController {
   @Post()
   @Permissions(Permission.BOARDROOM_BLOCKS_WRITE)
   @ApiOperation({ summary: 'Create a boardroom block', operationId: 'createBoardroomBlock' })
+  @ApiBody({ type: CreateBoardroomBlockDto })
   @ApiCreatedResponse({ type: BoardroomBlockResponseDto })
   create(
     @Body() dto: CreateBoardroomBlockDto,
-    @Req() req: AuthedRequest,
+    @CurrentUser() user: JwtPayload,
   ): Promise<BoardroomBlockResponseDto> {
-    return this.service.create(dto, req.user.sub);
+    return this.service.create(dto, user.sub);
   }
 
   @Patch(':id')
   @Permissions(Permission.BOARDROOM_BLOCKS_WRITE)
   @ApiOperation({ summary: 'Update a boardroom block', operationId: 'updateBoardroomBlock' })
+  @ApiBody({ type: UpdateBoardroomBlockDto })
   @ApiOkResponse({ type: BoardroomBlockResponseDto })
   update(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateBoardroomBlockDto,
-    @Req() req: AuthedRequest,
+    @CurrentUser() user: JwtPayload,
   ): Promise<BoardroomBlockResponseDto> {
-    return this.service.update(id, dto, req.user.sub);
+    return this.service.update(id, dto, user.sub);
   }
 
   @Post(':id/activate')
@@ -88,9 +88,9 @@ export class BoardroomBlocksController {
   @ApiOkResponse({ type: BoardroomBlockResponseDto })
   activate(
     @Param('id', new ParseUUIDPipe()) id: string,
-    @Req() req: AuthedRequest,
+    @CurrentUser() user: JwtPayload,
   ): Promise<BoardroomBlockResponseDto> {
-    return this.service.activate(id, req.user.sub);
+    return this.service.activate(id, user.sub);
   }
 
   @Post(':id/deactivate')
@@ -100,9 +100,9 @@ export class BoardroomBlocksController {
   @ApiOkResponse({ type: BoardroomBlockResponseDto })
   deactivate(
     @Param('id', new ParseUUIDPipe()) id: string,
-    @Req() req: AuthedRequest,
+    @CurrentUser() user: JwtPayload,
   ): Promise<BoardroomBlockResponseDto> {
-    return this.service.deactivate(id, req.user.sub);
+    return this.service.deactivate(id, user.sub);
   }
 
   @Delete(':id')
@@ -112,8 +112,8 @@ export class BoardroomBlocksController {
   @ApiNoContentResponse()
   remove(
     @Param('id', new ParseUUIDPipe()) id: string,
-    @Req() req: AuthedRequest,
+    @CurrentUser() user: JwtPayload,
   ): Promise<void> {
-    return this.service.remove(id, req.user.sub);
+    return this.service.remove(id, user.sub);
   }
 }

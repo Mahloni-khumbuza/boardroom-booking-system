@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiCreatedResponse,
   ApiNoContentResponse,
   ApiOkResponse,
@@ -21,10 +22,10 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { SuperAdminGuard } from '../../../shared/guards/super-admin.guard';
+import { PermissionsService } from '../services/permissions.service';
 import { CreatePermissionDto } from '../dto/create-permission.dto';
 import { PermissionResponseDto } from '../dto/permission-response.dto';
 import { UpdatePermissionDto } from '../dto/update-permission.dto';
-import { PermissionsService } from '../services/permissions.service';
 
 @ApiTags('permissions')
 @ApiBearerAuth()
@@ -49,6 +50,7 @@ export class PermissionsController {
 
   @Post()
   @ApiOperation({ summary: 'Create a permission', operationId: 'createPermission' })
+  @ApiBody({ type: CreatePermissionDto })
   @ApiCreatedResponse({ type: PermissionResponseDto })
   create(@Body() dto: CreatePermissionDto): Promise<PermissionResponseDto> {
     return this.permissionsService.create(dto);
@@ -56,6 +58,7 @@ export class PermissionsController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update a permission', operationId: 'updatePermission' })
+  @ApiBody({ type: UpdatePermissionDto })
   @ApiOkResponse({ type: PermissionResponseDto })
   update(
     @Param('id', new ParseUUIDPipe()) id: string,
