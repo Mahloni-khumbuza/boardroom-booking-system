@@ -1,21 +1,27 @@
 <section class="page">
 
-  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <!-- ── Header ──────────────────────────────────────────────────────── -->
   <header class="page-head">
-    <div class="page-head-text">
+    <div>
       <h1>Users</h1>
       <p class="lede">Manage all internal system accounts.</p>
     </div>
-    @if (isSuperAdmin() && !showForm()) {
-      <button class="btn-new" (click)="openCreate()">+ New User</button>
+    @if (canCreate() && !showForm()) {
+      <button class="btn-new" (click)="openCreate()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        New User
+      </button>
     }
   </header>
 
   @if (error(); as err) {
-    <div class="alert-error">{{ err }}</div>
+    <div class="alert-error">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+      {{ err }}
+    </div>
   }
 
-  <!-- ── Inline form (create / edit) ────────────────────────────────────── -->
+  <!-- ── Create / Edit form ───────────────────────────────────────────── -->
   @if (showForm()) {
     <div class="form-card">
       <div class="form-card-header">
@@ -23,12 +29,14 @@
           <h2 class="form-card-title">{{ isEdit() ? 'Edit User' : 'New User' }}</h2>
           <p class="form-card-sub">Fields marked * are required.</p>
         </div>
-        <button class="btn-close" type="button" (click)="closeForm()" title="Close">&#x2715;</button>
+        <button class="btn-close" type="button" (click)="closeForm()" aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
       </div>
 
       <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="form-body">
 
-        <div class="f-section">Personal details</div>
+        <div class="form-section-label">Personal details</div>
 
         <div class="f-row">
           <label class="f-field">
@@ -73,7 +81,7 @@
         </div>
 
         <div class="f-divider"></div>
-        <div class="f-section">Access &amp; security</div>
+        <div class="form-section-label">Access &amp; security</div>
 
         <div class="f-row">
           <label class="f-field">
@@ -103,7 +111,7 @@
         </div>
 
         @if (isEdit()) {
-          <label class="f-inline">
+          <label class="f-toggle-inline">
             <input type="checkbox" formControlName="isActive" />
             <span>Account is active</span>
           </label>
@@ -120,49 +128,57 @@
     </div>
   }
 
-  <!-- ── Stats bar ───────────────────────────────────────────────────────── -->
+  <!-- ── Stats strip ──────────────────────────────────────────────────── -->
   @if (!loading() && !showForm()) {
-    <div class="stats-bar">
-      <div class="stat">
-        <span class="stat-value">{{ users().length }}</span>
-        <span class="stat-label">Total</span>
+    <div class="stats-strip">
+      <div class="ss-item">
+        <span class="ss-value">{{ users().length }}</span>
+        <span class="ss-label">Total users</span>
       </div>
-      <div class="stat">
-        <span class="stat-value">{{ users().length - inactiveCount() }}</span>
-        <span class="stat-label">Active</span>
+      <div class="ss-divider"></div>
+      <div class="ss-item ss-active">
+        <span class="ss-value">{{ users().length - inactiveCount() }}</span>
+        <span class="ss-label">Active</span>
       </div>
-      <div class="stat">
-        <span class="stat-value">{{ inactiveCount() }}</span>
-        <span class="stat-label">Inactive</span>
+      <div class="ss-divider"></div>
+      <div class="ss-item ss-inactive">
+        <span class="ss-value">{{ inactiveCount() }}</span>
+        <span class="ss-label">Inactive</span>
       </div>
-      <div class="stat">
-        <span class="stat-value">{{ roleCount('SuperAdmin') }}</span>
-        <span class="stat-label">Super Admins</span>
+      <div class="ss-divider"></div>
+      <div class="ss-item">
+        <span class="ss-value">{{ roleCount('SuperAdmin') }}</span>
+        <span class="ss-label">Super Admins</span>
       </div>
-      <div class="stat">
-        <span class="stat-value">{{ roleCount('Admin') }}</span>
-        <span class="stat-label">Admins</span>
+      <div class="ss-divider"></div>
+      <div class="ss-item">
+        <span class="ss-value">{{ roleCount('Admin') }}</span>
+        <span class="ss-label">Admins</span>
       </div>
-      <div class="stat">
-        <span class="stat-value">{{ roleCount('FacilitiesManager') }}</span>
-        <span class="stat-label">Facilities</span>
+      <div class="ss-divider"></div>
+      <div class="ss-item">
+        <span class="ss-value">{{ roleCount('FacilitiesManager') }}</span>
+        <span class="ss-label">Facilities</span>
       </div>
-      <div class="stat">
-        <span class="stat-value">{{ roleCount('Employee') }}</span>
-        <span class="stat-label">Employees</span>
+      <div class="ss-divider"></div>
+      <div class="ss-item">
+        <span class="ss-value">{{ roleCount('Employee') }}</span>
+        <span class="ss-label">Employees</span>
       </div>
     </div>
   }
 
-  <!-- ── User cards ──────────────────────────────────────────────────────── -->
+  <!-- ── User grid ────────────────────────────────────────────────────── -->
   @if (loading()) {
     <app-spinner label="Loading users…" />
   } @else if (!showForm()) {
     @if (users().length === 0) {
-      <div class="empty">
-        <p>No users yet.</p>
-        @if (isSuperAdmin()) {
-          <button class="btn-new" (click)="openCreate()">+ Create first user</button>
+      <div class="empty-state">
+        <div class="empty-icon">👥</div>
+        <p class="empty-title">No users yet</p>
+        <p class="empty-sub">Create your first user to get started.</p>
+        @if (canCreate()) {
+          <button class="btn-new" (click)="openCreate()">+ New User</button>
         }
       </div>
     } @else {
@@ -170,49 +186,66 @@
         @for (u of users(); track u.id) {
           <div class="user-card" [class.card-inactive]="!u.isActive">
 
-            <div class="card-top">
-              <div class="card-avatar" [class]="'avatar-' + roleClass(u.role?.name)">
+            <div class="uc-header">
+              <div class="uc-avatar" [class]="'avatar-' + roleClass(u.role?.name)">
                 {{ initials(u) }}
               </div>
-              <div class="card-identity">
-                <div class="card-name">
+              <div class="uc-identity">
+                <div class="uc-name">
                   {{ fullName(u) }}
                   @if (u.id === currentUserId()) {
-                    <span class="self-chip">you</span>
+                    <span class="you-chip">you</span>
                   }
                 </div>
-                <div class="card-email">{{ u.email }}</div>
+                <div class="uc-email">{{ u.email }}</div>
               </div>
-              <span class="dot" [class.dot-on]="u.isActive" [class.dot-off]="!u.isActive"
+              <span class="status-dot" [class.dot-on]="u.isActive" [class.dot-off]="!u.isActive"
                 [title]="u.isActive ? 'Active' : 'Inactive'"></span>
             </div>
 
-            <div class="card-meta">
-              <span class="role-badge" [class]="'role-' + roleClass(u.role?.name)">
+            <div class="uc-meta">
+              <span class="role-pill" [class]="'role-' + roleClass(u.role?.name)">
                 {{ u.role?.name || 'No role' }}
               </span>
-              @if (u.jobTitle) { <span class="meta-pill">{{ u.jobTitle }}</span> }
-              @if (u.department) { <span class="meta-pill muted-pill">{{ u.department }}</span> }
+              @if (u.department) {
+                <span class="meta-tag">{{ u.department }}</span>
+              }
+              @if (u.jobTitle) {
+                <span class="meta-tag meta-muted">{{ u.jobTitle }}</span>
+              }
             </div>
 
             @if (u.phoneNumber) {
-              <div class="card-phone">{{ u.phoneNumber }}</div>
+              <div class="uc-phone">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.23 19.79 19.79 0 0 1 1.61 4.6 2 2 0 0 1 3.6 2.42h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.16 6.16l1.48-1.48a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                {{ u.phoneNumber }}
+              </div>
             }
 
-            <div class="card-footer">
-              <span class="card-joined">Joined {{ u.createdAt | date: 'MMM d, y' }}</span>
-              @if (isSuperAdmin()) {
-                <div class="card-actions">
-                  <button class="icon-btn edit-btn" title="Edit user"
-                    (click)="openEdit(u)" [disabled]="busyId() === u.id">✎</button>
-                  @if (u.id !== currentUserId()) {
-                    <button class="icon-btn delete-btn" title="Delete user"
+            <div class="uc-footer">
+              <span class="uc-joined">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                {{ u.createdAt | date:'MMM d, y' }}
+              </span>
+              <div class="uc-actions">
+                <button class="uc-btn uc-btn-view" title="View user" (click)="viewingUser.set(u)">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+                @if (canEdit()) {
+                  <button class="uc-btn uc-btn-edit" title="Edit user"
+                    (click)="openEdit(u)" [disabled]="busyId() === u.id">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  </button>
+                  @if (canDelete() && u.id !== currentUserId()) {
+                    <button class="uc-btn uc-btn-delete" title="Delete user"
                       (click)="deleteUser(u)" [disabled]="busyId() === u.id">
-                      {{ busyId() === u.id ? '…' : '✕' }}
+                      @if (busyId() === u.id) { … } @else {
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                      }
                     </button>
                   }
-                </div>
-              }
+                }
+              </div>
             </div>
 
           </div>
@@ -222,3 +255,74 @@
   }
 
 </section>
+
+<app-confirmation-modal
+  [open]="confirmOpen()"
+  [config]="confirmConfig()"
+  (confirmed)="onConfirmed()"
+  (cancelled)="onCancelled()"
+/>
+
+<!-- ── User detail modal ──────────────────────────────────────────── -->
+@if (viewingUser(); as u) {
+  <div class="ud-overlay" (click)="viewingUser.set(null)">
+    <div class="ud-modal" (click)="$event.stopPropagation()">
+
+      <div class="ud-header">
+        <div class="ud-avatar" [class]="'avatar-' + roleClass(u.role?.name)">{{ initials(u) }}</div>
+        <div class="ud-identity">
+          <div class="ud-name">
+            {{ fullName(u) }}
+            @if (u.id === currentUserId()) { <span class="you-chip">you</span> }
+          </div>
+          <div class="ud-email">{{ u.email }}</div>
+        </div>
+        <button class="btn-close" (click)="viewingUser.set(null)" aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="ud-body">
+        <div class="ud-row">
+          <span class="ud-label">Role</span>
+          <span class="role-pill" [class]="'role-' + roleClass(u.role?.name)">{{ u.role?.name || 'No role' }}</span>
+        </div>
+        <div class="ud-row">
+          <span class="ud-label">Status</span>
+          <span class="ud-status" [class.ud-active]="u.isActive" [class.ud-inactive]="!u.isActive">
+            {{ u.isActive ? 'Active' : 'Inactive' }}
+          </span>
+        </div>
+        @if (u.department) {
+          <div class="ud-row">
+            <span class="ud-label">Department</span>
+            <span>{{ u.department }}</span>
+          </div>
+        }
+        @if (u.jobTitle) {
+          <div class="ud-row">
+            <span class="ud-label">Job title</span>
+            <span>{{ u.jobTitle }}</span>
+          </div>
+        }
+        @if (u.phoneNumber) {
+          <div class="ud-row">
+            <span class="ud-label">Phone</span>
+            <span>{{ u.phoneNumber }}</span>
+          </div>
+        }
+        <div class="ud-row">
+          <span class="ud-label">Joined</span>
+          <span>{{ u.createdAt | date:'dd MMM yyyy' }}</span>
+        </div>
+      </div>
+
+      @if (canEdit()) {
+        <div class="ud-footer">
+          <button class="btn-save" (click)="openEdit(u); viewingUser.set(null)">Edit user</button>
+        </div>
+      }
+
+    </div>
+  </div>
+}

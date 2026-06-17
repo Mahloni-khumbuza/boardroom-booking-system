@@ -22,14 +22,17 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
 import { Permissions } from '../../../shared/decorators/permissions.decorator';
 import { PermissionsGuard } from '../../../shared/guards/permissions.guard';
 import { Permission } from '../../../shared/constants/permissions';
+import { User } from '../../users/entities/user.entity';
 import { BoardroomsService } from '../services/boardrooms.service';
 import { BoardroomQueryDto } from '../dto/boardroom-query.dto';
 import { BoardroomResponseDto } from '../dto/boardroom-response.dto';
 import { CreateBoardroomDto } from '../dto/create-boardroom.dto';
 import { UpdateBoardroomDto } from '../dto/update-boardroom.dto';
+import { UpdateEquipmentStatusDto } from '../dto/update-equipment-status.dto';
 import { AvailabilityQueryDto, AvailabilityResponseDto } from '../dto/availability-query.dto';
 
 @ApiTags('boardrooms')
@@ -71,8 +74,8 @@ export class BoardroomsController {
   @ApiOperation({ summary: 'Create a boardroom', operationId: 'createBoardroom' })
   @ApiBody({ type: CreateBoardroomDto })
   @ApiCreatedResponse({ type: BoardroomResponseDto })
-  create(@Body() dto: CreateBoardroomDto): Promise<BoardroomResponseDto> {
-    return this.boardroomsService.create(dto);
+  create(@Body() dto: CreateBoardroomDto, @CurrentUser() user: User): Promise<BoardroomResponseDto> {
+    return this.boardroomsService.create(dto, user?.id);
   }
 
   @Patch(':id')
@@ -83,8 +86,22 @@ export class BoardroomsController {
   update(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: UpdateBoardroomDto,
+    @CurrentUser() user: User,
   ): Promise<BoardroomResponseDto> {
-    return this.boardroomsService.update(id, dto);
+    return this.boardroomsService.update(id, dto, user?.id);
+  }
+
+  @Patch(':id/equipment-status')
+  @Permissions(Permission.ROOMS_EQUIPMENT)
+  @ApiOperation({ summary: 'Update boardroom equipment status (Facilities Manager)', operationId: 'updateEquipmentStatus' })
+  @ApiBody({ type: UpdateEquipmentStatusDto })
+  @ApiOkResponse({ type: BoardroomResponseDto })
+  updateEquipmentStatus(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: UpdateEquipmentStatusDto,
+    @CurrentUser() user: User,
+  ): Promise<BoardroomResponseDto> {
+    return this.boardroomsService.update(id, { equipmentStatus: dto.equipmentStatus }, user?.id);
   }
 
   @Delete(':id')
@@ -92,7 +109,7 @@ export class BoardroomsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a boardroom', operationId: 'deleteBoardroom' })
   @ApiNoContentResponse()
-  remove(@Param('id', new ParseUUIDPipe()) id: string): Promise<void> {
-    return this.boardroomsService.remove(id);
+  remove(@Param('id', new ParseUUIDPipe()) id: string, @CurrentUser() user: User): Promise<void> {
+    return this.boardroomsService.remove(id, user?.id);
   }
 }

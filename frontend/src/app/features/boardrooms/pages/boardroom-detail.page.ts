@@ -8,6 +8,7 @@ import { AvailabilitySlot, BoardroomAvailability } from '../models/boardroom.mod
 import { Boardroom } from '../models/boardroom.model';
 import { BoardroomsService } from '../services/boardrooms.service';
 import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
+import { extractErrorMessage } from '../../../shared/utils/error.utils';
 
 @Component({
   selector: 'app-boardroom-detail-page',
@@ -30,15 +31,14 @@ export class BoardroomDetailPage {
   readonly availError = signal<string | null>(null);
   readonly selectedDate = signal<string>(todayString());
 
-  readonly isAdmin = this.auth.isAdmin;
+  readonly isAdmin = computed(() => this.auth.isAdmin());
   readonly todayString = todayString;
 
   readonly backPath = computed(() => {
     const url = this.router.url;
-    if (url.startsWith('/superadmin/browse-boardrooms')) return '/superadmin/browse-boardrooms';
-    if (url.startsWith('/superadmin/boardrooms')) return '/superadmin/boardrooms';
-    if (url.startsWith('/admin/browse-boardrooms')) return '/admin/browse-boardrooms';
-    if (url.startsWith('/admin/boardrooms')) return '/admin/boardrooms';
+    if (url.startsWith('/superadmin')) return '/superadmin/boardrooms';
+    if (url.startsWith('/admin'))      return '/admin/boardrooms';
+    if (url.startsWith('/facilities')) return '/facilities/boardrooms';
     return '/employee/boardrooms';
   });
 
@@ -78,16 +78,33 @@ export class BoardroomDetailPage {
   }
 
   bookRoom(): void {
-    const base = this.router.url.startsWith('/admin') ? '/admin'
-      : this.router.url.startsWith('/superadmin') ? '/superadmin'
-      : '/employee';
+    const url  = this.router.url;
+    const base = url.startsWith('/superadmin') ? '/superadmin'
+               : url.startsWith('/admin')      ? '/admin'
+               : url.startsWith('/facilities') ? '/facilities'
+               : '/employee';
     void this.router.navigate([`${base}/bookings`], {
-      queryParams: { boardroomId: this.boardroom()?.id }
+      queryParams: { boardroomId: this.boardroom()?.id },
     });
   }
 
   trackSlot(_: number, slot: AvailabilitySlot): string {
     return slot.start;
+  }
+
+  heroGradient(id: string): string {
+    const gradients = [
+      'linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%)',
+      'linear-gradient(135deg, #1a1a2e 0%, #4f46e5 100%)',
+      'linear-gradient(135deg, #0f766e 0%, #14b8a6 100%)',
+      'linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%)',
+      'linear-gradient(135deg, #1e40af 0%, #60a5fa 100%)',
+      'linear-gradient(135deg, #0f172a 0%, #475569 100%)',
+      'linear-gradient(135deg, #065f46 0%, #10b981 100%)',
+      'linear-gradient(135deg, #92400e 0%, #f59e0b 100%)',
+    ];
+    const hash = id.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    return gradients[hash % gradients.length];
   }
 
   private loadRoom(id: string): void {
@@ -99,7 +116,7 @@ export class BoardroomDetailPage {
         this.loading.set(false);
       },
       error: (err) => {
-        this.error.set(this.errorMessage(err));
+        this.error.set(extractErrorMessage(err));
         this.loading.set(false);
       }
     });
@@ -114,18 +131,12 @@ export class BoardroomDetailPage {
         this.availLoading.set(false);
       },
       error: (err) => {
-        this.availError.set(this.errorMessage(err));
+        this.availError.set(extractErrorMessage(err));
         this.availLoading.set(false);
       }
     });
   }
 
-  private errorMessage(err: unknown): string {
-    const e = err as { error?: { message?: string | string[] }; message?: string };
-    const msg = e?.error?.message;
-    if (Array.isArray(msg)) return msg.join(', ');
-    return msg || e?.message || 'Something went wrong.';
-  }
 }
 
 function todayString(): string {

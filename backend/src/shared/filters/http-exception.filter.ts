@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { randomUUID } from 'crypto';
 
 interface ErrorResponseBody {
   statusCode: number;
@@ -14,6 +15,7 @@ interface ErrorResponseBody {
   error: string;
   path: string;
   timestamp: string;
+  traceId: string;
 }
 
 @Catch()
@@ -24,6 +26,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
+    const traceId = randomUUID();
 
     const status =
       exception instanceof HttpException
@@ -39,17 +42,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
         message = exceptionResponse;
       } else if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
         const responseObj = exceptionResponse as Record<string, unknown>;
-        message =
-          (responseObj.message as string | string[] | undefined) ?? exception.message;
+        message = (responseObj.message as string | string[] | undefined) ?? exception.message;
         error = (responseObj.error as string | undefined) ?? exception.name;
       } else {
         message = exception.message;
         error = exception.name;
       }
     } else if (exception instanceof Error) {
-      this.logger.error(exception.message, exception.stack);
+      this.logger.error(`[${traceId}] ${exception.message}`, exception.stack);
     } else {
-      this.logger.error('Unknown exception', String(exception));
+      this.logger.error(`[${traceId}] Unknown exception`, String(exception));
     }
 
     const body: ErrorResponseBody = {
@@ -58,6 +60,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       error,
       path: request.url,
       timestamp: new Date().toISOString(),
+      traceId,
     };
 
     response.status(status).json(body);

@@ -1,94 +1,146 @@
-<div class="page">
-  <div class="page-header">
-    <h1>Roles</h1>
-    <button class="btn btn-primary" (click)="openCreate()">+ New Role</button>
-  </div>
+<section class="page">
+
+  <!-- ── Header ──────────────────────────────────────────────────────── -->
+  <header class="page-head">
+    <div>
+      <h1>Roles</h1>
+      <p class="lede">Define roles and assign permissions to control access across the system.</p>
+    </div>
+    @if (!showForm()) {
+      <button class="btn-new" (click)="openCreate()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        New Role
+      </button>
+    }
+  </header>
 
   @if (error()) {
-    <div class="alert alert-error">{{ error() }}</div>
+    <div class="alert-error">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+      {{ error() }}
+    </div>
   }
 
+  <!-- ── Form card ────────────────────────────────────────────────────── -->
   @if (showForm()) {
-    <div class="card form-card">
-      <h2>{{ isEditing() ? 'Edit Role' : 'New Role' }}</h2>
-      <form [formGroup]="form" (ngSubmit)="submitForm()">
-        <div class="fields-row">
-          <div class="field">
-            <label>Name</label>
-            <input type="text" formControlName="name" placeholder="e.g. Facilities" />
+    <div class="form-card">
+      <div class="form-card-header">
+        <div>
+          <h2 class="form-card-title">{{ isEditing() ? 'Edit Role' : 'New Role' }}</h2>
+          <p class="form-card-sub">Set the role name, description, and assign permissions.</p>
+        </div>
+        <button class="btn-close" type="button" (click)="closeForm()" aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="submitForm()" class="form-body">
+        <div class="f-row">
+          <label class="f-field">
+            <span class="f-label">Role name *</span>
+            <input type="text" formControlName="name" placeholder="e.g. Facilities Manager" />
             @if (form.controls.name.invalid && form.controls.name.touched) {
-              <span class="field-error">Name is required (2–50 characters)</span>
+              <span class="f-error">Name is required (2–50 characters)</span>
             }
-          </div>
-          <div class="field">
-            <label>Description</label>
-            <input type="text" formControlName="description" placeholder="Short description" />
-          </div>
+          </label>
+          <label class="f-field">
+            <span class="f-label">Description <span class="f-opt">(optional)</span></span>
+            <input type="text" formControlName="description" placeholder="Brief description of this role" />
+          </label>
         </div>
 
         @if (allPermissions().length > 0) {
           <div class="perms-section">
-            <label class="perms-label">Permissions</label>
+            <div class="perms-header">
+              <span class="perms-label">Permissions</span>
+              <span class="perms-count">{{ selectedPermissionCount() }} selected</span>
+            </div>
             <div class="perms-grid">
               @for (p of allPermissions(); track p.id) {
-                <label class="perm-item">
+                <label class="perm-item" [class.perm-checked]="isPermissionSelected(p.id)">
                   <input type="checkbox" [checked]="isPermissionSelected(p.id)" (change)="togglePermission(p.id)" />
-                  <span class="perm-name">{{ p.name }}</span>
-                  @if (p.description) {
-                    <span class="perm-desc">{{ p.description }}</span>
-                  }
+                  <div class="perm-info">
+                    <span class="perm-name">{{ p.name }}</span>
+                    @if (p.description) {
+                      <span class="perm-desc">{{ p.description }}</span>
+                    }
+                  </div>
                 </label>
               }
             </div>
           </div>
         }
 
-        <div class="form-actions">
-          <button type="button" class="btn btn-ghost" (click)="closeForm()">Cancel</button>
-          <button type="submit" class="btn btn-primary" [disabled]="saving()">
-            {{ saving() ? 'Saving…' : (isEditing() ? 'Update' : 'Create') }}
+        <div class="f-actions">
+          <button type="button" class="btn-cancel" (click)="closeForm()">Cancel</button>
+          <button type="submit" class="btn-save" [disabled]="saving()">
+            {{ saving() ? 'Saving…' : (isEditing() ? 'Save changes' : 'Create role') }}
           </button>
         </div>
       </form>
     </div>
   }
 
+  <!-- ── Roles table ──────────────────────────────────────────────────── -->
   @if (loading()) {
-    <p class="loading">Loading roles…</p>
+    <app-spinner label="Loading roles…" />
   } @else if (roles().length === 0) {
-    <div class="empty">No roles defined yet.</div>
+    <div class="empty-state">
+      <div class="empty-icon">🔐</div>
+      <p class="empty-title">No roles defined yet</p>
+      <p class="empty-sub">Create your first role to start assigning permissions.</p>
+      <button class="btn-new" (click)="openCreate()">+ New Role</button>
+    </div>
   } @else {
-    <div class="card">
-      <table class="table">
+    <div class="roles-table-card">
+      <table class="roles-table">
         <thead>
           <tr>
-            <th>Name</th>
+            <th>Role</th>
             <th>Description</th>
             <th>Permissions</th>
-            <th></th>
+            <th class="th-actions"></th>
           </tr>
         </thead>
         <tbody>
           @for (role of roles(); track role.id) {
             <tr>
-              <td><strong>{{ role.name }}</strong></td>
-              <td class="muted">{{ role.description ?? '—' }}</td>
+              <td>
+                <div class="role-name-cell">
+                  <span class="role-icon" [class]="'ri-' + roleClass(role.name)">
+                    {{ roleInitial(role.name) }}
+                  </span>
+                  <span class="role-name">{{ role.name }}</span>
+                </div>
+              </td>
+              <td class="td-desc">{{ role.description ?? '—' }}</td>
               <td>
                 @if (role.permissions.length === 0) {
-                  <span class="muted">None</span>
+                  <span class="no-perms">No permissions assigned</span>
                 } @else {
                   <div class="perm-tags">
-                    @for (p of role.permissions; track p.id) {
+                    @for (p of (expandedRoleId() === role.id ? role.permissions : role.permissions.slice(0, 4)); track p.id) {
                       <code class="perm-tag">{{ p.name }}</code>
+                    }
+                    @if (role.permissions.length > 4) {
+                      <button class="perm-more" (click)="toggleExpand(role.id)">
+                        {{ expandedRoleId() === role.id ? 'Show less' : '+' + (role.permissions.length - 4) + ' more' }}
+                      </button>
                     }
                   </div>
                 }
               </td>
-              <td class="actions">
-                <button class="btn btn-sm btn-ghost" (click)="openEdit(role)">Edit</button>
+              <td class="td-actions">
+                <button class="tbl-btn tbl-btn-edit" (click)="openEdit(role)" title="Edit role">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  Edit
+                </button>
                 @if (canDelete(role)) {
-                  <button class="btn btn-sm btn-danger" [disabled]="busyId() === role.id" (click)="remove(role)">
-                    {{ busyId() === role.id ? '…' : 'Delete' }}
+                  <button class="tbl-btn tbl-btn-danger" [disabled]="busyId() === role.id" (click)="remove(role)">
+                    @if (busyId() === role.id) { Deleting… } @else {
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+                      Delete
+                    }
                   </button>
                 }
               </td>
@@ -98,4 +150,5 @@
       </table>
     </div>
   }
-</div>
+
+</section>

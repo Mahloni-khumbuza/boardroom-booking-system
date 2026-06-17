@@ -104,21 +104,20 @@
 .f-field input::placeholder,
 .f-field textarea::placeholder { color: #cbd5e1; }
 
-/* Icon input with live preview */
-.icon-input-wrap { display: flex; gap: 8px; align-items: center; }
-.icon-input-wrap input { flex: 1; }
 
-.icon-preview {
+/* ── Name input with icon preview ───────────────────── */
+.name-input-wrap { display: flex; gap: 8px; align-items: center; }
+.name-input-wrap input { flex: 1; }
+
+.name-icon-preview {
   width: 40px;
   height: 40px;
-  border-radius: 8px;
-  background: #f1f5f9;
-  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.3rem;
   flex-shrink: 0;
+  transition: background 0.2s, color 0.2s;
 }
 
 /* ── Form actions ───────────────────────────────────── */
@@ -171,43 +170,45 @@
 .empty-sub   { margin: 6px 0 0; font-size: 0.84rem; color: #94a3b8; }
 
 /* ── Amenity cards ──────────────────────────────────── */
-.amenity-grid { display: flex; flex-direction: column; gap: 8px; }
+.amenity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
 
 .amenity-card {
   display: flex;
-  align-items: center;
-  gap: 14px;
+  flex-direction: column;
+  gap: 12px;
   background: #fff;
-  border-radius: 12px;
-  padding: 14px 16px;
+  border-radius: 14px;
+  padding: 18px 16px 14px;
   border: 1.5px solid #f1f5f9;
-  box-shadow: 0 1px 3px rgba(15,23,42,0.05);
-  transition: border-color 0.15s, box-shadow 0.15s;
+  box-shadow: 0 1px 4px rgba(15,23,42,0.06);
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
 }
 .amenity-card:hover {
-  border-color: #e0e7ff;
-  box-shadow: 0 2px 8px rgba(79,70,229,0.08);
+  border-color: #c7d2fe;
+  box-shadow: 0 4px 16px rgba(79,70,229,0.1);
+  transform: translateY(-2px);
 }
 
 .amenity-icon-wrap {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.4rem;
   flex-shrink: 0;
 }
 
 .amenity-info { flex: 1; min-width: 0; }
-.amenity-name { font-weight: 600; font-size: 0.92rem; color: #0f172a; }
-.amenity-desc { font-size: 0.78rem; color: #64748b; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.amenity-name { font-weight: 700; font-size: 0.95rem; color: #0f172a; }
+.amenity-desc { font-size: 0.78rem; color: #64748b; margin-top: 4px; line-height: 1.5; }
 .amenity-desc.no-desc { color: #cbd5e1; font-style: italic; }
 
-.amenity-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.amenity-actions { display: flex; gap: 6px; justify-content: flex-end; }
 
 .icon-btn {
   width: 30px;

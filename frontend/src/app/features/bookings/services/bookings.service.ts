@@ -7,7 +7,9 @@ import {
   Booking,
   BookingCreateRequest,
   BookingQuery,
-  BookingUpdateRequest
+  BookingUpdateRequest,
+  CancelBookingRequest,
+  RejectBookingRequest,
 } from '../models/booking.model';
 
 @Injectable({ providedIn: 'root' })
@@ -26,6 +28,10 @@ export class BookingsService {
     return this.http.get<Booking[]>(this.url, { params });
   }
 
+  myBookings(): Observable<Booking[]> {
+    return this.http.get<Booking[]>(`${this.url}/my-bookings`);
+  }
+
   get(id: string): Observable<Booking> {
     return this.http.get<Booking>(`${this.url}/${id}`);
   }
@@ -39,15 +45,23 @@ export class BookingsService {
   }
 
   approve(id: string): Observable<Booking> {
-    return this.http.post<Booking>(`${this.url}/${id}/approve`, {});
+    return this.http.patch<Booking>(`${this.url}/${id}/approve`, {});
+  }
+
+  reject(id: string, payload: RejectBookingRequest): Observable<Booking> {
+    return this.http.patch<Booking>(`${this.url}/${id}/reject`, payload);
   }
 
   complete(id: string): Observable<Booking> {
-    return this.http.post<Booking>(`${this.url}/${id}/complete`, {});
+    return this.http.patch<Booking>(`${this.url}/${id}/complete`, {});
   }
 
-  cancel(id: string): Observable<Booking> {
-    return this.http.post<Booking>(`${this.url}/${id}/cancel`, {});
+  noShow(id: string): Observable<Booking> {
+    return this.http.patch<Booking>(`${this.url}/${id}/no-show`, {});
+  }
+
+  cancel(id: string, payload: CancelBookingRequest = {}): Observable<Booking> {
+    return this.http.patch<Booking>(`${this.url}/${id}/cancel`, payload);
   }
 
   remove(id: string): Observable<void> {

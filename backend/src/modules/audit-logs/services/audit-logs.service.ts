@@ -31,7 +31,7 @@ export class AuditLogsService {
         entity: input.entity,
         entityId: input.entityId ?? null,
         actorId: input.actorId ?? null,
-        metadata: { ...input.metadata, before: input.before ?? undefined, after: input.after ?? undefined } ?? null,
+        metadata: { ...input.metadata, before: input.before ?? undefined, after: input.after ?? undefined },
       });
       await this.repo.save(log);
     } catch (error) {
@@ -44,45 +44,37 @@ export class AuditLogsService {
   }
 
   async findAll(query: AuditLogQueryDto = {}): Promise<PaginatedAuditLogResponseDto> {
-    try {
-      const limit = query.limit ?? 50;
-      const offset = query.offset ?? 0;
+    const limit = query.limit ?? 50;
+    const offset = query.offset ?? 0;
 
-      const qb = this.repo
-        .createQueryBuilder('log')
-        .leftJoinAndSelect('log.actor', 'actor')
-        .orderBy('log.createdAt', 'DESC')
-        .take(limit)
-        .skip(offset);
+    const qb = this.repo
+      .createQueryBuilder('log')
+      .leftJoinAndSelect('log.actor', 'actor')
+      .orderBy('log.createdAt', 'DESC')
+      .take(limit)
+      .skip(offset);
 
-      if (query.action) qb.andWhere('log.action ILIKE :action', { action: `%${query.action}%` });
-      if (query.entity) qb.andWhere('log.entity = :entity', { entity: query.entity });
-      if (query.entityId) qb.andWhere('log.entityId = :entityId', { entityId: query.entityId });
-      if (query.actorId) qb.andWhere('log.actorId = :actorId', { actorId: query.actorId });
-      if (query.from) qb.andWhere('log.createdAt >= :from', { from: new Date(query.from) });
-      if (query.to) qb.andWhere('log.createdAt <= :to', { to: new Date(query.to) });
+    if (query.action) qb.andWhere('log.action ILIKE :action', { action: `%${query.action}%` });
+    if (query.entity) qb.andWhere('log.entity = :entity', { entity: query.entity });
+    if (query.entityId) qb.andWhere('log.entityId = :entityId', { entityId: query.entityId });
+    if (query.actorId) qb.andWhere('log.actorId = :actorId', { actorId: query.actorId });
+    if (query.from) qb.andWhere('log.createdAt >= :from', { from: new Date(query.from) });
+    if (query.to) qb.andWhere('log.createdAt <= :to', { to: new Date(query.to) });
 
-      const [items, total] = await qb.getManyAndCount();
+    const [items, total] = await qb.getManyAndCount();
 
-      return {
-        items: items.map((log) => this.toDto(log)),
-        total,
-        limit,
-        offset,
-      };
-    } catch (error) {
-      throw error;
-    }
+    return {
+      items: items.map((log) => this.toDto(log)),
+      total,
+      limit,
+      offset,
+    };
   }
 
   async findOne(id: string): Promise<AuditLogResponseDto> {
-    try {
-      const log = await this.repo.findOne({ where: { id }, relations: { actor: true } });
-      if (!log) throw new NotFoundException(`Audit log ${id} not found`);
-      return this.toDto(log);
-    } catch (error) {
-      throw error;
-    }
+    const log = await this.repo.findOne({ where: { id }, relations: { actor: true } });
+    if (!log) throw new NotFoundException(`Audit log ${id} not found`);
+    return this.toDto(log);
   }
 
   private toDto(log: AuditLog): AuditLogResponseDto {

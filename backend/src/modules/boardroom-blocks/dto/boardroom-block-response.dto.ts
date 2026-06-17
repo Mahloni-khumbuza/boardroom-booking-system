@@ -9,6 +9,17 @@ export class BlockBoardroomDto {
   name: string;
 }
 
+export class BlockUserDto {
+  @ApiProperty()
+  id: string;
+
+  @ApiProperty()
+  firstName: string;
+
+  @ApiProperty()
+  lastName: string;
+}
+
 export class BoardroomBlockResponseDto {
   @ApiProperty()
   id: string;
@@ -27,6 +38,9 @@ export class BoardroomBlockResponseDto {
 
   @ApiProperty()
   isActive: boolean;
+
+  @ApiProperty({ type: BlockUserDto, nullable: true })
+  createdBy: BlockUserDto | null;
 
   @ApiProperty({ nullable: true })
   createdById: string | null;
@@ -47,6 +61,9 @@ export class BoardroomBlockResponseDto {
     dto.endTime = block.endTime;
     dto.reason = block.reason;
     dto.isActive = block.isActive;
+    dto.createdBy = block.createdBy
+      ? { id: block.createdBy.id, firstName: block.createdBy.firstName, lastName: block.createdBy.lastName }
+      : null;
     dto.createdById = block.createdById;
     dto.createdAt = block.createdAt;
     dto.updatedAt = block.updatedAt;

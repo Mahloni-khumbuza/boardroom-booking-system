@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { SystemSetting } from '../entities/system-setting.entity';
 
 export class SystemSettingResponseDto {
   @ApiProperty()
@@ -18,4 +19,19 @@ export class SystemSettingResponseDto {
 
   @ApiProperty()
   updatedAt: Date;
+
+  static fromEntity(setting: SystemSetting): SystemSettingResponseDto {
+    const dto = new SystemSettingResponseDto();
+    dto.id = setting.id;
+    dto.key = setting.key;
+    dto.value = setting.value;
+    dto.description = setting.description;
+    dto.createdAt = setting.createdAt;
+    dto.updatedAt = setting.updatedAt;
+    return dto;
+  }
+
+  static collection(settings: SystemSetting[]): SystemSettingResponseDto[] {
+    return settings.map(SystemSettingResponseDto.fromEntity);
+  }
 }

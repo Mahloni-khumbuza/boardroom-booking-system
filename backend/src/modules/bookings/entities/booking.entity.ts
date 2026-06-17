@@ -83,6 +83,9 @@ export class Booking {
   @Column({ nullable: true, type: 'text', name: 'cancellation_reason' })
   cancellationReason: string | null;
 
+  @Column({ type: 'timestamptz', name: 'cancelled_at', nullable: true })
+  cancelledAt: Date | null;
+
   @Column({ nullable: true, type: 'text', name: 'rejection_reason' })
   rejectionReason: string | null;
 

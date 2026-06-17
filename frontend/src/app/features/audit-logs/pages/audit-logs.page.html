@@ -19,24 +19,33 @@
       <span>Entity type</span>
       <select [ngModel]="filterEntity()" (ngModelChange)="filterEntity.set($event)">
         <option value="">All entities</option>
+        <option value="Booking">Booking</option>
+        <option value="Boardroom">Boardroom</option>
+        <option value="boardroom_block">Boardroom Block</option>
         <option value="user">User</option>
-        <option value="booking">Booking</option>
-        <option value="boardroom">Boardroom</option>
-        <option value="amenity">Amenity</option>
-        <option value="boardroom-block">Boardroom Block</option>
-        <option value="notification">Notification</option>
-        <option value="system-setting">System Setting</option>
-        <option value="role">Role</option>
-        <option value="permission">Permission</option>
+        <option value="Amenity">Amenity</option>
+        <option value="system_setting">System Setting</option>
+        <option value="Role">Role</option>
+        <option value="Permission">Permission</option>
+        <option value="email">Email (failures)</option>
       </select>
     </label>
     <label class="field">
       <span>Action contains</span>
       <input
         type="text"
-        placeholder="created, login, cancelled…"
+        placeholder="created, approved, login…"
         [ngModel]="filterAction()"
         (ngModelChange)="filterAction.set($event)"
+      />
+    </label>
+    <label class="field">
+      <span>Actor (user ID)</span>
+      <input
+        type="text"
+        placeholder="Paste user UUID…"
+        [ngModel]="filterActorId()"
+        (ngModelChange)="filterActorId.set($event)"
       />
     </label>
     <label class="field">

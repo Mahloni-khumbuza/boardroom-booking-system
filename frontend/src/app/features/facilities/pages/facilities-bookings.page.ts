@@ -5,18 +5,22 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { forkJoin } from 'rxjs';
 
 import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
+import { StatusBadgeComponent } from '../../../shared/components/status-badge/status-badge.component';
 import { DialogService } from '../../../core/services/dialog.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { Amenity, Boardroom } from '../../boardrooms/models/boardroom.model';
 import { BoardroomsService } from '../../boardrooms/services/boardrooms.service';
 import { Booking, BookingStatus } from '../../bookings/models/booking.model';
 import { BookingsService } from '../../bookings/services/bookings.service';
+import { extractErrorMessage } from '../../../shared/utils/error.utils';
 
 const STATUS_LABELS: Record<BookingStatus, string> = {
-  pending: 'Pending Approval',
-  confirmed: 'Confirmed',
-  cancelled: 'Cancelled',
-  completed: 'Completed'
+  pending_approval: 'Pending Approval',
+  approved:         'Confirmed',
+  rejected:         'Rejected',
+  cancelled:        'Cancelled',
+  completed:        'Completed',
+  no_show:          'No Show',
 };
 
 const MEETING_TYPES = [
@@ -42,7 +46,7 @@ function toLocalInput(d: Date): string {
 @Component({
   selector: 'app-facilities-bookings-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, MatTabsModule, SpinnerComponent],
+  imports: [CommonModule, ReactiveFormsModule, MatTabsModule, SpinnerComponent, StatusBadgeComponent],
   templateUrl: './facilities-bookings.page.html',
   styleUrl: './facilities-bookings.page.css'
 })
@@ -77,7 +81,7 @@ export class FacilitiesBookingsPage {
   readonly todayBookings = computed(() => {
     const today = new Date();
     return this.filtered().filter((b) => {
-      const d = new Date(b.startTime);
+      const d = new Date(b.startDateTime);
       return d.getFullYear() === today.getFullYear() &&
              d.getMonth() === today.getMonth() &&
              d.getDate() === today.getDate();
@@ -93,13 +97,19 @@ export class FacilitiesBookingsPage {
   );
 
   readonly upcomingBookings = computed(() =>
-    this.bookings().filter((b) => (b.status === 'confirmed' || b.status === 'pending') && new Date(b.endTime) >= new Date())
+    this.bookings().filter(
+      (b) => (b.status === 'approved' || b.status === 'pending_approval') && new Date(b.endDateTime) >= new Date()
+    )
   );
-  readonly pendingBookings = computed(() => this.bookings().filter((b) => b.status === 'pending'));
+  readonly pendingBookings = computed(() => this.bookings().filter((b) => b.status === 'pending_approval'));
   readonly pastBookings = computed(() =>
-    this.bookings().filter((b) => b.status === 'completed' || (b.status === 'confirmed' && new Date(b.endTime) < new Date()))
+    this.bookings().filter(
+      (b) => b.status === 'completed' || (b.status === 'approved' && new Date(b.endDateTime) < new Date())
+    )
   );
-  readonly cancelledBookings = computed(() => this.bookings().filter((b) => b.status === 'cancelled'));
+  readonly cancelledBookings = computed(() =>
+    this.bookings().filter((b) => b.status === 'cancelled' || b.status === 'rejected')
+  );
 
   readonly form = this.fb.nonNullable.group({
     title:           ['', [Validators.required, Validators.minLength(2), Validators.maxLength(200)]],
@@ -135,7 +145,7 @@ export class FacilitiesBookingsPage {
         this.boardrooms.set(boardrooms);
         this.loading.set(false);
       },
-      error: (err) => { this.error.set(this.errorMessage(err)); this.loading.set(false); }
+      error: (err) => { this.error.set(extractErrorMessage(err)); this.loading.set(false); }
     });
   }
 
@@ -203,7 +213,7 @@ export class FacilitiesBookingsPage {
         this.toast.success('Booking created successfully.');
       },
       error: (err) => {
-        this.error.set(this.errorMessage(err));
+        this.error.set(extractErrorMessage(err));
         this.saving.set(false);
       }
     });
@@ -233,13 +243,16 @@ export class FacilitiesBookingsPage {
     });
   }
 
-  canApprove(b: Booking): boolean { return b.status === 'pending' && new Date(b.endTime) >= new Date(); }
-  canCancel(b: Booking): boolean  { return b.status !== 'cancelled' && b.status !== 'completed' && new Date(b.endTime) >= new Date(); }
+  canApprove(b: Booking): boolean { return b.status === 'pending_approval' && new Date(b.endDateTime) >= new Date(); }
+  canCancel(b: Booking): boolean  {
+    return b.status !== 'cancelled' && b.status !== 'completed' && b.status !== 'rejected' && b.status !== 'no_show'
+      && new Date(b.endDateTime) >= new Date();
+  }
 
-  statusLabel(s: BookingStatus): string { return STATUS_LABELS[s]; }
+  statusLabel(s: BookingStatus): string { return STATUS_LABELS[s] ?? s; }
   bookerLabel(b: Booking): string {
-    if (!b.bookedBy) return '—';
-    return `${b.bookedBy.firstName} ${b.bookedBy.lastName}`.trim() || b.bookedBy.email;
+    if (!b.bookedByUser) return '—';
+    return `${b.bookedByUser.firstName} ${b.bookedByUser.lastName}`.trim() || b.bookedByUser.email;
   }
 
   private replaceOne(updated: Booking): void {
@@ -247,10 +260,4 @@ export class FacilitiesBookingsPage {
     this.busyId.set(null);
   }
 
-  private errorMessage(err: unknown): string {
-    const e = err as { error?: { message?: string | string[] }; message?: string };
-    const msg = e?.error?.message;
-    if (Array.isArray(msg)) return msg.join(', ');
-    return msg || e?.message || 'Something went wrong.';
-  }
 }

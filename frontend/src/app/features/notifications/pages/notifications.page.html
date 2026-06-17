@@ -84,7 +84,7 @@
       @for (note of notifications(); track note.id) {
         <article class="note" [class.unread]="!note.isRead" (click)="markRead(note)">
           <div class="note-head">
-            <span class="type-chip type-{{ note.type }}">{{ note.type.replace('_', ' ') }}</span>
+            <span class="type-chip type-{{ note.type }}">{{ typeLabel(note.type) }}</span>
             <h3>{{ note.title }}</h3>
             <span class="meta">{{ note.createdAt | date: 'short' }}</span>
             <button

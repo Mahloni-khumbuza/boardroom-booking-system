@@ -30,7 +30,16 @@
 
         <label class="f-field">
           <span class="f-label">Name *</span>
-          <input type="text" formControlName="name" maxlength="80" placeholder="e.g. Projector" />
+          <div class="name-input-wrap">
+            <input type="text" formControlName="name" maxlength="80" placeholder="e.g. Projector" />
+            @if (form.controls.name.value) {
+              <div class="name-icon-preview"
+                [style.background]="amenityIcon(form.controls.name.value).bg"
+                [style.color]="amenityIcon(form.controls.name.value).color">
+                <lucide-icon [img]="amenityIcon(form.controls.name.value).icon" [size]="18"></lucide-icon>
+              </div>
+            }
+          </div>
           @if (form.controls.name.touched && form.controls.name.invalid) {
             <span class="f-error">Name must be 2–80 characters.</span>
           }
@@ -40,15 +49,6 @@
           <span class="f-label">Description <span class="f-opt">(optional)</span></span>
           <textarea formControlName="description" rows="3" maxlength="500"
             placeholder="What this amenity provides…"></textarea>
-        </label>
-
-        <label class="f-field">
-          <span class="f-label">Icon <span class="f-opt">(emoji or short label — optional)</span></span>
-          <div class="icon-input-wrap">
-            <input type="text" formControlName="icon" maxlength="8" placeholder="e.g. 📽 or TV" />
-            <div class="icon-preview">{{ form.controls.icon.value || '?' }}</div>
-          </div>
-          <span class="f-hint">Paste an emoji or type a short label. Shows on room cards.</span>
         </label>
 
         <div class="f-actions">
@@ -76,8 +76,12 @@
       <div class="amenity-grid">
         @for (a of amenities(); track a.id) {
           <div class="amenity-card">
-            <div class="amenity-icon-wrap">{{ a.icon || a.name[0].toUpperCase() }}</div>
-            <div class="amenity-info">
+            <div class="amenity-icon-wrap"
+            [style.background]="amenityIcon(a.name).bg"
+            [style.color]="amenityIcon(a.name).color">
+            <lucide-icon [img]="amenityIcon(a.name).icon" [size]="22"></lucide-icon>
+          </div>
+          <div class="amenity-info">
               <div class="amenity-name">{{ a.name }}</div>
               @if (a.description) {
                 <div class="amenity-desc">{{ a.description }}</div>
