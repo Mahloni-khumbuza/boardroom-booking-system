@@ -255,12 +255,12 @@
           </td>
           <td class="td-muted">{{ b.boardroom.name }}</td>
           <td class="td-time">
-            {{ b.startTime | date:'dd MMM yyyy' }}<br/>
-            <span class="td-sub">{{ b.startTime | date:'HH:mm' }} – {{ b.endTime | date:'HH:mm' }}</span>
+            {{ b.startDateTime | date:'dd MMM yyyy' }}<br/>
+            <span class="td-sub">{{ b.startDateTime | date:'HH:mm' }} – {{ b.endDateTime | date:'HH:mm' }}</span>
           </td>
           <td class="td-center">{{ b.attendeeCount }}<span class="td-cap">/{{ b.boardroom.capacity }}</span></td>
           <td class="td-muted">{{ bookerLabel(b) }}</td>
-          <td><span class="badge badge-{{ b.status }}">{{ statusLabel(b.status) }}</span></td>
+          <td><app-status-badge [status]="b.status" /></td>
           <td class="td-actions">
             @if (canApprove(b)) {
               <button class="btn-action btn-action-primary" [disabled]="busyId() === b.id" (click)="approve(b)">Approve</button>

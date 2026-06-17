@@ -2,12 +2,22 @@
   <header class="head">
     <div>
       <h1>Boardroom Blocks</h1>
-      <p class="lede">Mark a boardroom as unavailable (e.g. maintenance). Active blocks prevent new bookings from overlapping the window.</p>
+      <p class="lede">Mark a boardroom as unavailable for maintenance or other reasons. Active blocks prevent bookings from overlapping the blocked window.</p>
     </div>
     <button type="button" class="btn primary" (click)="toggleCreate()">
       {{ showCreate() ? 'Close' : '+ New block' }}
     </button>
   </header>
+
+  <!-- Booking restriction notice -->
+  <div class="restriction-notice">
+    <span class="restriction-icon">🚧</span>
+    <div>
+      <strong>How blocks work:</strong>
+      Any employee attempting to book a room during an <em>active</em> block window will be blocked with an error.
+      Deactivate a block to restore availability without deleting the record.
+    </div>
+  </div>
 
   @if (error(); as err) {
     <div class="banner error">{{ err }}</div>
@@ -106,6 +116,7 @@
             <th>From</th>
             <th>To</th>
             <th>Reason</th>
+            <th>Created by</th>
             <th>Status</th>
             <th></th>
           </tr>
@@ -113,10 +124,22 @@
         <tbody>
           @for (b of blocks(); track b.id) {
             <tr [class.row-editing]="editingBlock()?.id === b.id" [class.row-inactive]="!b.isActive">
-              <td><strong>{{ b.boardroom.name }}</strong></td>
+              <td>
+                <strong>{{ b.boardroom.name }}</strong>
+                @if (b.isActive) {
+                  <span class="booking-blocked-tag" title="New bookings are blocked during this window">⛔ Bookings blocked</span>
+                }
+              </td>
               <td class="small">{{ b.startTime | date: 'MMM d, h:mm a' }}</td>
               <td class="small">{{ b.endTime | date: 'MMM d, h:mm a' }}</td>
               <td class="muted">{{ b.reason }}</td>
+              <td class="small muted">
+                @if (b.createdBy) {
+                  {{ b.createdBy.firstName }} {{ b.createdBy.lastName }}
+                } @else {
+                  <span class="dim">—</span>
+                }
+              </td>
               <td>
                 <span class="badge" [class.badge-active]="b.isActive" [class.badge-inactive]="!b.isActive">
                   {{ b.isActive ? 'Active' : 'Inactive' }}

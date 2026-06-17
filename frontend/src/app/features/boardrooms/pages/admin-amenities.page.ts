@@ -1,17 +1,25 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  Projector, Tv, Mic2, Wifi, Phone, Wind, Sun, Coffee,
+  UtensilsCrossed, Pencil, Volume2, Monitor, Presentation,
+  Armchair, Lock, Star, Printer, Camera, Lightbulb, Tag,
+  LucideAngularModule,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+} from 'lucide-angular';
 
 import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
 import { DialogService } from '../../../core/services/dialog.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { Amenity } from '../models/boardroom.model';
 import { AmenitiesService } from '../services/amenities.service';
+import { extractErrorMessage } from '../../../shared/utils/error.utils';
 
 @Component({
   selector: 'app-admin-amenities-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, SpinnerComponent],
+  imports: [CommonModule, ReactiveFormsModule, SpinnerComponent, LucideAngularModule],
   templateUrl: './admin-amenities.page.html',
   styleUrl: './admin-amenities.page.css'
 })
@@ -33,7 +41,6 @@ export class AdminAmenitiesPage {
   readonly form = this.fb.nonNullable.group({
     name:        ['', [Validators.required, Validators.minLength(2), Validators.maxLength(80)]],
     description: [''],
-    icon:        ['']
   });
 
   constructor() {
@@ -45,13 +52,13 @@ export class AdminAmenitiesPage {
     this.error.set(null);
     this.amenitiesService.list().subscribe({
       next: (list) => { this.amenities.set(list); this.loading.set(false); },
-      error: (err) => { this.error.set(this.errorMessage(err)); this.loading.set(false); }
+      error: (err) => { this.error.set(extractErrorMessage(err)); this.loading.set(false); }
     });
   }
 
   openCreate(): void {
     this.editingId.set(null);
-    this.form.reset({ name: '', description: '', icon: '' });
+    this.form.reset({ name: '', description: '' });
     this.error.set(null);
     this.showForm.set(true);
   }
@@ -61,7 +68,6 @@ export class AdminAmenitiesPage {
     this.form.reset({
       name:        amenity.name,
       description: amenity.description ?? '',
-      icon:        amenity.icon ?? ''
     });
     this.error.set(null);
     this.showForm.set(true);
@@ -84,7 +90,6 @@ export class AdminAmenitiesPage {
     const payload = {
       name:        raw.name.trim(),
       description: raw.description?.trim() || undefined,
-      icon:        raw.icon?.trim() || undefined
     };
     const id = this.editingId();
     const req = id
@@ -98,7 +103,7 @@ export class AdminAmenitiesPage {
         this.closeForm();
         this.refresh();
       },
-      error: (err) => { this.error.set(this.errorMessage(err)); this.saving.set(false); }
+      error: (err) => { this.error.set(extractErrorMessage(err)); this.saving.set(false); }
     });
   }
 
@@ -112,15 +117,39 @@ export class AdminAmenitiesPage {
       if (!confirmed) return;
       this.amenitiesService.remove(amenity.id).subscribe({
         next: () => { this.refresh(); this.toast.success('Amenity deleted.'); },
-        error: (err) => this.error.set(this.errorMessage(err))
+        error: (err) => this.error.set(extractErrorMessage(err))
       });
     });
   }
 
-  private errorMessage(err: unknown): string {
-    const e = err as { error?: { message?: string | string[] }; message?: string };
-    const msg = e?.error?.message;
-    if (Array.isArray(msg)) return msg.join(', ');
-    return msg || e?.message || 'Something went wrong.';
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private readonly iconMap: Array<{ keywords: string[]; icon: any; color: string; bg: string }> = [
+    { keywords: ['projector'],                   icon: Projector,       color: '#4f46e5', bg: '#eef2ff' },
+    { keywords: ['tv', 'screen', 'television'],  icon: Tv,              color: '#0891b2', bg: '#e0f2fe' },
+    { keywords: ['video', 'conferenc'],          icon: Monitor,         color: '#7c3aed', bg: '#f5f3ff' },
+    { keywords: ['mic', 'audio'],                icon: Mic2,            color: '#db2777', bg: '#fdf2f8' },
+    { keywords: ['wifi', 'wi-fi', 'internet'],   icon: Wifi,            color: '#0284c7', bg: '#e0f2fe' },
+    { keywords: ['phone'],                       icon: Phone,           color: '#16a34a', bg: '#f0fdf4' },
+    { keywords: ['air', 'condition', 'hvac'],    icon: Wind,            color: '#0891b2', bg: '#ecfeff' },
+    { keywords: ['natural', 'light', 'sun'],     icon: Sun,             color: '#d97706', bg: '#fffbeb' },
+    { keywords: ['catering', 'food', 'coffee'],  icon: UtensilsCrossed, color: '#ea580c', bg: '#fff7ed' },
+    { keywords: ['whiteboard', 'board'],         icon: Pencil,          color: '#7c3aed', bg: '#f5f3ff' },
+    { keywords: ['speaker', 'volume', 'sound'],  icon: Volume2,         color: '#0284c7', bg: '#eff6ff' },
+    { keywords: ['presentation'],                icon: Presentation,    color: '#4f46e5', bg: '#eef2ff' },
+    { keywords: ['standing', 'desk', 'chair'],   icon: Armchair,        color: '#059669', bg: '#ecfdf5' },
+    { keywords: ['soundproof', 'acoustic'],      icon: Lock,            color: '#475569', bg: '#f8fafc' },
+    { keywords: ['printer'],                     icon: Printer,         color: '#64748b', bg: '#f8fafc' },
+    { keywords: ['camera'],                      icon: Camera,          color: '#dc2626', bg: '#fef2f2' },
+    { keywords: ['lamp', 'lighting'],            icon: Lightbulb,       color: '#d97706', bg: '#fffbeb' },
+  ];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  amenityIcon(name: string): { icon: any; color: string; bg: string } {
+    const lower = name.toLowerCase();
+    for (const entry of this.iconMap) {
+      if (entry.keywords.some(k => lower.includes(k))) return entry;
+    }
+    return { icon: Tag, color: '#64748b', bg: '#f1f5f9' };
   }
+
 }

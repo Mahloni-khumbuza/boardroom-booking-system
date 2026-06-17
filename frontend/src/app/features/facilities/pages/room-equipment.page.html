@@ -12,7 +12,7 @@
   }
 
   @if (loading()) {
-    <p class="loading">Loading rooms…</p>
+    <app-spinner label="Loading rooms…" />
   } @else if (boardrooms().length === 0) {
     <div class="empty">No boardrooms found.</div>
   } @else {

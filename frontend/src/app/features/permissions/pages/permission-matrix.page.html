@@ -1,0 +1,61 @@
+<section class="page">
+  <header class="page-head">
+    <div>
+      <h1>Permission Matrix</h1>
+      <p class="lede">
+        System capabilities by role — source of truth from the delivery brief §3.1.
+        Your role (<strong>{{ currentRoleLabel() }}</strong>) is highlighted.
+      </p>
+    </div>
+  </header>
+
+  <!-- Legend -->
+  <div class="legend">
+    <span class="legend-item legend-yes">Yes — full access</span>
+    <span class="legend-item legend-limited">Limited — partial capabilities</span>
+    <span class="legend-item legend-config">Configurable — controlled by system setting</span>
+    <span class="legend-item legend-no">No — not permitted</span>
+  </div>
+
+  <div class="table-wrap">
+    <table class="matrix-table">
+      <thead>
+        <tr>
+          <th class="th-capability">Capability</th>
+          <th [class.th-current]="currentRole() === 'employee'">
+            Employee
+            @if (currentRole() === 'employee') { <span class="you-chip">you</span> }
+          </th>
+          <th [class.th-current]="currentRole() === 'facilities'">
+            Facilities Manager
+            @if (currentRole() === 'facilities') { <span class="you-chip">you</span> }
+          </th>
+          <th [class.th-current]="currentRole() === 'admin'">
+            Admin
+            @if (currentRole() === 'admin') { <span class="you-chip">you</span> }
+          </th>
+          <th [class.th-current]="currentRole() === 'superAdmin'">
+            Super Admin
+            @if (currentRole() === 'superAdmin') { <span class="you-chip">you</span> }
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (row of matrix; track row.capability) {
+          <tr>
+            <td class="td-capability">{{ row.capability }}</td>
+            <td [class]="cellClass(row.employee,   'employee')">{{ cellLabel(row.employee) }}</td>
+            <td [class]="cellClass(row.facilities, 'facilities')">{{ cellLabel(row.facilities) }}</td>
+            <td [class]="cellClass(row.admin,      'admin')">{{ cellLabel(row.admin) }}</td>
+            <td [class]="cellClass(row.superAdmin, 'superAdmin')">{{ cellLabel(row.superAdmin) }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <p class="matrix-note">
+    <strong>Configurable:</strong> Facilities Manager approval capability is controlled by the
+    <code>FM_CAN_APPROVE_BOOKINGS</code> system setting. Admins can toggle this in Settings.
+  </p>
+</section>

@@ -1,6 +1,10 @@
 <section class="page">
-  <a class="back" [routerLink]="backPath()">
-    ← Back to all boardrooms
+
+  <a class="back-link" [routerLink]="backPath()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+      <path d="m15 18-6-6 6-6"/>
+    </svg>
+    Back to all rooms
   </a>
 
   @if (loading()) {
@@ -9,146 +13,184 @@
     <div class="banner error">{{ err }}</div>
   } @else if (boardroom(); as room) {
 
-    <!-- Hero image -->
-    @if (room.imageUrl) {
-      <div class="hero-image">
-        <img [src]="room.imageUrl" [alt]="room.name" />
-      </div>
-    }
-
-    <div class="layout">
-      <!-- Left column: room info -->
-      <article class="card room-info">
-        <header class="room-header">
-          <div>
-            <h1>{{ room.name }}</h1>
-            @if (room.location) {
-              <p class="meta">
-                <span class="meta-dot">▪</span> {{ room.location }}
-                @if (room.floor) { · Floor {{ room.floor }} }
-                @if (room.building) { · {{ room.building }} }
-              </p>
-            }
-          </div>
-          <span class="capacity-badge">
+    <!-- ── Hero ──────────────────────────────────────────────────── -->
+    <div class="hero" [class.hero-photo]="room.imageUrl" [class.hero-gradient]="!room.imageUrl"
+         [style.background]="!room.imageUrl ? heroGradient(room.id) : null">
+      @if (room.imageUrl) {
+        <img class="hero-img" [src]="room.imageUrl" [alt]="room.name" />
+      }
+      <div class="hero-overlay"></div>
+      <div class="hero-content">
+        <div class="hero-badges">
+          @if (room.requiresApproval) {
+            <span class="hero-badge badge-approval">Approval required</span>
+          } @else {
+            <span class="hero-badge badge-instant">Instant confirm</span>
+          }
+          @if (room.equipmentStatus === 'OutOfService') {
+            <span class="hero-badge badge-outofservice">Out of service</span>
+          } @else if (room.equipmentStatus === 'NeedsAttention') {
+            <span class="hero-badge badge-attention">Needs attention</span>
+          }
+        </div>
+        <h1 class="hero-title">{{ room.name }}</h1>
+        <div class="hero-meta">
+          @if (room.location) {
+            <span class="hero-meta-item">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+              </svg>
+              {{ room.location }}
+              @if (room.floor) { · Floor {{ room.floor }} }
+              @if (room.building) { · {{ room.building }} }
+            </span>
+          }
+          <span class="hero-meta-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
             {{ room.capacity }} seats
           </span>
-        </header>
+          <span class="hero-meta-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            {{ room.openingTime }} – {{ room.closingTime }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Two-column layout ─────────────────────────────────────── -->
+    <div class="layout">
+
+      <!-- Left: room details -->
+      <div class="col-main">
 
         @if (room.description) {
-          <p class="desc">{{ room.description }}</p>
-        }
-
-        <!-- Operating hours -->
-        @if (room.openingTime || room.closingTime) {
-          <div class="info-row">
-            <span class="info-label">Hours</span>
-            <span>{{ room.openingTime }} – {{ room.closingTime }}</span>
-          </div>
-        }
-
-        <!-- Booking rules -->
-        @if (room.minimumBookingMinutes || room.maximumBookingMinutes) {
-          <div class="info-row">
-            <span class="info-label">Duration</span>
-            <span>Min {{ room.minimumBookingMinutes }} min · Max {{ room.maximumBookingMinutes / 60 }} hrs</span>
-          </div>
-        }
-
-        @if (room.bufferTimeBeforeMinutes || room.bufferTimeAfterMinutes) {
-          <div class="info-row">
-            <span class="info-label">Buffer</span>
-            <span>
-              @if (room.bufferTimeBeforeMinutes) { {{ room.bufferTimeBeforeMinutes }} min before }
-              @if (room.bufferTimeBeforeMinutes && room.bufferTimeAfterMinutes) { · }
-              @if (room.bufferTimeAfterMinutes) { {{ room.bufferTimeAfterMinutes }} min after }
-            </span>
+          <div class="detail-card">
+            <h2 class="section-title">About this room</h2>
+            <p class="room-desc">{{ room.description }}</p>
           </div>
         }
 
         <!-- Amenities -->
-        <section class="amenities-section">
-          <h2>Amenities</h2>
+        <div class="detail-card">
+          <h2 class="section-title">Amenities</h2>
           @if (room.amenities.length === 0) {
-            <p class="muted">No amenities listed.</p>
+            <p class="muted-text">No amenities listed for this room.</p>
           } @else {
-            <div class="amenity-chips">
+            <div class="amenity-grid">
               @for (a of room.amenities; track a.id) {
-                <span class="amenity-chip" [title]="a.description ?? ''">{{ a.name }}</span>
-              }
-            </div>
-          }
-        </section>
-
-        <!-- Book button -->
-        @if (!isAdmin()) {
-          <div class="book-action">
-            <button class="book-btn" (click)="bookRoom()">
-              Book this room
-            </button>
-          </div>
-        }
-      </article>
-
-      <!-- Right column: availability slots -->
-      <article class="card availability-card">
-        <div class="avail-header">
-          <h2 class="avail-title">Room Availability</h2>
-
-          <!-- Date navigation -->
-          <div class="date-nav">
-            <button class="nav-btn" (click)="prevDay()" [disabled]="isToday()" title="Previous day">‹</button>
-            <input
-              class="date-input"
-              type="date"
-              [value]="selectedDate()"
-              [min]="todayString()"
-              (change)="onDateChange($any($event.target).value)"
-            />
-            <button class="nav-btn" (click)="nextDay()" title="Next day">›</button>
-          </div>
-        </div>
-
-        <!-- Summary badges -->
-        @if (availability(); as avail) {
-          <div class="avail-summary">
-            <span class="badge badge-free">{{ freeCount() }} free</span>
-            <span class="badge badge-busy">{{ busyCount() }} busy</span>
-            <span class="avail-hours">{{ avail.openingTime }} – {{ avail.closingTime }}</span>
-          </div>
-        }
-
-        @if (availLoading()) {
-          <app-spinner label="Loading slots…" />
-        } @else if (availError(); as err) {
-          <div class="banner error">{{ err }}</div>
-        } @else if (availability(); as avail) {
-
-          @if (avail.slots.length === 0) {
-            <p class="muted center">No operating hours configured for this room.</p>
-          } @else {
-            <div class="slots-grid">
-              @for (slot of avail.slots; track trackSlot($index, slot)) {
-                <div
-                  class="slot"
-                  [class.slot-free]="slot.available"
-                  [class.slot-busy]="!slot.available"
-                  [title]="slot.available ? 'Available' : (slot.reason ?? 'Booked')"
-                >
-                  <span class="slot-time">{{ slot.start }}</span>
-                  @if (!slot.available && slot.reason) {
-                    <span class="slot-reason">{{ slot.reason }}</span>
-                  }
-                  @if (slot.available) {
-                    <span class="slot-label">Free</span>
-                  }
+                <div class="amenity-item" [title]="a.description ?? ''">
+                  <span class="amenity-icon">{{ a.icon || '✓' }}</span>
+                  <span class="amenity-name">{{ a.name }}</span>
                 </div>
               }
             </div>
           }
+        </div>
 
+        <!-- Booking rules -->
+        <div class="detail-card">
+          <h2 class="section-title">Booking rules</h2>
+          <div class="rules-grid">
+            <div class="rule-item">
+              <div class="rule-label">Min duration</div>
+              <div class="rule-value">{{ room.minimumBookingMinutes }} min</div>
+            </div>
+            <div class="rule-item">
+              <div class="rule-label">Max duration</div>
+              <div class="rule-value">{{ room.maximumBookingMinutes / 60 }} hrs</div>
+            </div>
+            @if (room.bufferTimeBeforeMinutes) {
+              <div class="rule-item">
+                <div class="rule-label">Buffer before</div>
+                <div class="rule-value">{{ room.bufferTimeBeforeMinutes }} min</div>
+              </div>
+            }
+            @if (room.bufferTimeAfterMinutes) {
+              <div class="rule-item">
+                <div class="rule-label">Buffer after</div>
+                <div class="rule-value">{{ room.bufferTimeAfterMinutes }} min</div>
+              </div>
+            }
+          </div>
+        </div>
+
+        <!-- Book CTA -->
+        @if (room.isBookable) {
+          <div class="book-cta">
+            <div class="book-cta-text">
+              <strong>Ready to book?</strong>
+              <span>Reserve {{ room.name }} for your next meeting.</span>
+            </div>
+            <button class="btn-book" (click)="bookRoom()">Book this room →</button>
+          </div>
         }
-      </article>
+
+      </div>
+
+      <!-- Right: availability -->
+      <div class="col-side">
+        <div class="detail-card avail-card">
+          <div class="avail-header">
+            <h2 class="section-title">Availability</h2>
+            <div class="date-nav">
+              <button class="nav-btn" (click)="prevDay()" [disabled]="isToday()" title="Previous day">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14">
+                  <path d="m15 18-6-6 6-6"/>
+                </svg>
+              </button>
+              <input class="date-input" type="date"
+                [value]="selectedDate()"
+                [min]="todayString()"
+                (change)="onDateChange($any($event.target).value)" />
+              <button class="nav-btn" (click)="nextDay()" title="Next day">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="14" height="14">
+                  <path d="m9 18 6-6-6-6"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          @if (availability(); as avail) {
+            <div class="avail-summary">
+              <span class="avail-pill pill-free">{{ freeCount() }} free</span>
+              <span class="avail-pill pill-busy">{{ busyCount() }} busy</span>
+              <span class="avail-hours">{{ avail.openingTime }} – {{ avail.closingTime }}</span>
+            </div>
+          }
+
+          @if (availLoading()) {
+            <app-spinner label="Loading slots…" />
+          } @else if (availError(); as err) {
+            <div class="banner error">{{ err }}</div>
+          } @else if (availability(); as avail) {
+            @if (avail.slots.length === 0) {
+              <p class="muted-text center">No operating hours configured.</p>
+            } @else {
+              <div class="slots-grid">
+                @for (slot of avail.slots; track trackSlot($index, slot)) {
+                  <div class="slot"
+                    [class.slot-free]="slot.available"
+                    [class.slot-busy]="!slot.available"
+                    [title]="slot.available ? 'Available' : (slot.reason ?? 'Booked')">
+                    <span class="slot-time">{{ slot.start }}</span>
+                    <span class="slot-status">
+                      @if (slot.available) { Free }
+                      @else if (slot.reason) { {{ slot.reason | slice:0:12 }}… }
+                      @else { Booked }
+                    </span>
+                  </div>
+                }
+              </div>
+            }
+          }
+        </div>
+      </div>
+
     </div>
   }
 </section>

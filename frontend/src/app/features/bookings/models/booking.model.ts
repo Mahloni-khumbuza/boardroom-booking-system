@@ -1,6 +1,12 @@
 import { Amenity } from '../../boardrooms/models/boardroom.model';
 
-export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed';
+export type BookingStatus =
+  | 'pending_approval'
+  | 'approved'
+  | 'rejected'
+  | 'cancelled'
+  | 'completed'
+  | 'no_show';
 
 export interface BookingBoardroom {
   id: string;
@@ -20,12 +26,24 @@ export interface Booking {
   id: string;
   title: string;
   description: string | null;
-  startTime: string;
-  endTime: string;
+  startDateTime: string;
+  endDateTime: string;
   attendeeCount: number;
   status: BookingStatus;
+  meetingType: string;
+  requiresCatering: boolean;
+  cateringNotes: string | null;
+  requiresSetup: boolean;
+  setupNotes: string | null;
+  cancellationReason: string | null;
+  cancelledAt: string | null;
+  rejectionReason: string | null;
   boardroom: BookingBoardroom;
-  bookedBy: BookingActor | null;
+  bookedByUser: BookingActor | null;
+  approvedByUser: BookingActor | null;
+  approvedAt: string | null;
+  rejectedByUser: BookingActor | null;
+  rejectedAt: string | null;
   requestedAmenities: Amenity[];
   createdAt: string;
   updatedAt: string;
@@ -53,6 +71,14 @@ export interface BookingUpdateRequest {
   endTime?: string;
   attendeeCount?: number;
   requestedAmenityIds?: string[];
+}
+
+export interface RejectBookingRequest {
+  reason: string;
+}
+
+export interface CancelBookingRequest {
+  reason?: string;
 }
 
 export interface BookingQuery {

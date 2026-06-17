@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { forkJoin } from 'rxjs';
+import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
 
 import { DialogService } from '../../../core/services/dialog.service';
 import { ToastService } from '../../../core/services/toast.service';
@@ -9,11 +10,12 @@ import { Permission } from '../../permissions/models/permission.model';
 import { PermissionsService } from '../../permissions/services/permissions.service';
 import { Role } from '../models/role.model';
 import { RolesFullService } from '../services/roles-full.service';
+import { extractErrorMessage } from '../../../shared/utils/error.utils';
 
 @Component({
   selector: 'app-roles-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, SpinnerComponent],
   templateUrl: './roles.page.html',
   styleUrl: './roles.page.css'
 })
@@ -35,6 +37,11 @@ export class RolesPage {
   readonly selectedPermissionIds = signal<Set<string>>(new Set());
 
   readonly PROTECTED_ROLES = new Set(['SuperAdmin', 'Admin', 'Employee']);
+  readonly expandedRoleId = signal<string | null>(null);
+
+  toggleExpand(id: string): void {
+    this.expandedRoleId.set(this.expandedRoleId() === id ? null : id);
+  }
 
   readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.minLength(2), Validators.maxLength(50)]],
@@ -59,7 +66,7 @@ export class RolesPage {
         this.allPermissions.set(permissions);
         this.loading.set(false);
       },
-      error: (err) => { this.error.set(this.errorMessage(err)); this.loading.set(false); }
+      error: (err) => { this.error.set(extractErrorMessage(err)); this.loading.set(false); }
     });
   }
 
@@ -119,7 +126,7 @@ export class RolesPage {
 
     req$.subscribe({
       next: () => { this.saving.set(false); this.toast.success(id ? 'Role updated.' : 'Role created.'); this.closeForm(); this.refresh(); },
-      error: (err) => { this.error.set(this.errorMessage(err)); this.saving.set(false); }
+      error: (err) => { this.error.set(extractErrorMessage(err)); this.saving.set(false); }
     });
   }
 
@@ -130,7 +137,7 @@ export class RolesPage {
         this.busyId.set(role.id);
         this.rolesService.remove(role.id).subscribe({
           next: () => { this.roles.update((list) => list.filter((r) => r.id !== role.id)); this.busyId.set(null); this.toast.success('Role deleted.'); },
-          error: (err) => { this.error.set(this.errorMessage(err)); this.busyId.set(null); }
+          error: (err) => { this.error.set(extractErrorMessage(err)); this.busyId.set(null); }
         });
       });
   }
@@ -139,10 +146,16 @@ export class RolesPage {
     return !this.PROTECTED_ROLES.has(role.name);
   }
 
-  private errorMessage(err: unknown): string {
-    const e = err as { error?: { message?: string | string[] }; message?: string };
-    const msg = e?.error?.message;
-    if (Array.isArray(msg)) return msg.join(', ');
-    return msg || e?.message || 'Something went wrong.';
+  selectedPermissionCount(): number {
+    return this.selectedPermissionIds().size;
   }
+
+  roleClass(name: string | undefined): string {
+    return (name ?? 'none').toLowerCase().replace(/\s+/g, '');
+  }
+
+  roleInitial(name: string): string {
+    return name.charAt(0).toUpperCase();
+  }
+
 }

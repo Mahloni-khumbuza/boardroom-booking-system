@@ -63,24 +63,22 @@
       <div class="detail-body">
         <div class="detail-row">
           <span class="detail-label">Room</span>
-          <span>{{ s.booking.boardroom.name }}
-            @if (s.booking.boardroom.location) {
-              <span class="muted"> · {{ s.booking.boardroom.location }}</span>
-            }
-          </span>
+          <span>{{ roomName(s.booking) }}</span>
         </div>
         <div class="detail-row">
           <span class="detail-label">Start</span>
-          <span>{{ formatTime(s.booking.startTime) }}</span>
+          <span>{{ formatTime(startTime(s.booking)) }}</span>
         </div>
         <div class="detail-row">
           <span class="detail-label">End</span>
-          <span>{{ formatTime(s.booking.endTime) }}</span>
+          <span>{{ formatTime(endTime(s.booking)) }}</span>
         </div>
-        <div class="detail-row">
-          <span class="detail-label">Attendees</span>
-          <span>{{ s.booking.attendeeCount }}</span>
-        </div>
+        @if (s.booking.attendeeCount) {
+          <div class="detail-row">
+            <span class="detail-label">Attendees</span>
+            <span>{{ s.booking.attendeeCount }}</span>
+          </div>
+        }
         <div class="detail-row">
           <span class="detail-label">Booked by</span>
           <span>{{ bookerName(s.booking) }}</span>
@@ -91,7 +89,7 @@
             <span>{{ s.booking.description }}</span>
           </div>
         }
-        @if (s.booking.requestedAmenities.length) {
+        @if (s.booking.requestedAmenities?.length) {
           <div class="detail-row">
             <span class="detail-label">Amenities</span>
             <div class="chip-list">
@@ -116,3 +114,10 @@
     </div>
   }
 </section>
+
+<app-confirmation-modal
+  [open]="confirmOpen()"
+  [config]="confirmConfig()"
+  (confirmed)="onConfirmed()"
+  (cancelled)="onCancelled()"
+/>

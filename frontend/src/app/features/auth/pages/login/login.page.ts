@@ -1,13 +1,13 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 
 import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-login-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule],
   templateUrl: './login.page.html',
   styleUrl: './login.page.css'
 })
@@ -15,7 +15,6 @@ export class LoginPage {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
-  private readonly route = inject(ActivatedRoute);
 
   readonly form = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
@@ -24,9 +23,7 @@ export class LoginPage {
 
   readonly loading = signal(false);
   readonly errorMessage = signal<string | null>(null);
-  readonly justRegistered = signal(
-    this.route.snapshot.queryParamMap.get('registered') === '1'
-  );
+  readonly showForgotHint = signal(false);
 
   submit(): void {
     if (this.form.invalid || this.loading()) {
@@ -40,7 +37,7 @@ export class LoginPage {
     this.auth.login(this.form.getRawValue()).subscribe({
       next: () => {
         this.loading.set(false);
-        void this.router.navigateByUrl('/app/dashboard');
+        void this.router.navigateByUrl(this.auth.homePath());
       },
       error: (err) => {
         this.loading.set(false);

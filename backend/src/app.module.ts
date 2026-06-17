@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_FILTER, APP_PIPE } from '@nestjs/core';
+import { ScheduleModule } from '@nestjs/schedule';
+import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -20,6 +21,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
 import { MailModule } from './modules/mail/mail.module';
 import { AllExceptionsFilter } from './shared/filters/http-exception.filter';
+import { LoggingInterceptor } from './shared/interceptors/logging.interceptor';
 
 @Module({
   imports: [
@@ -28,6 +30,7 @@ import { AllExceptionsFilter } from './shared/filters/http-exception.filter';
       cache: true,
       validate: validateEnv,
     }),
+    ScheduleModule.forRoot(),
     DatabaseModule,
     MailModule,
     AuthModule,
@@ -59,6 +62,10 @@ import { AllExceptionsFilter } from './shared/filters/http-exception.filter';
     {
       provide: APP_FILTER,
       useClass: AllExceptionsFilter,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: LoggingInterceptor,
     },
   ],
 })

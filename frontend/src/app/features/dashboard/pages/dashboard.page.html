@@ -1,4 +1,6 @@
 <section class="page">
+
+  <!-- ── Header ─────────────────────────────────────────────────────── -->
   <header class="head">
     <div>
       <h1>
@@ -9,14 +11,16 @@
         }
       </h1>
       <p class="lede">
-        @if (isAdmin()) { Here's the state of the system at a glance. }
-        @else { Here's a summary of your activity. }
+        @if (isAdmin()) { Here's the state of the system right now. }
+        @else { Here's a summary of your bookings and activity. }
       </p>
     </div>
     @if (!isAdmin()) {
-      <a class="btn-new-booking" [routerLink]="['/employee/bookings']">+ New Booking</a>
+      <a class="btn-new-booking" [routerLink]="[portalBase() + '/bookings']">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+        New Booking
+      </a>
     }
-
   </header>
 
   @if (error(); as err) {
@@ -26,42 +30,76 @@
   @if (loading()) {
     <app-spinner label="Loading dashboard…" />
 
+  <!-- ═══════════════════ ADMIN / FM / SUPERADMIN ═══════════════════ -->
   } @else if (isAdmin() && adminStats(); as s) {
 
-    <div class="stats-grid">
-      <div class="stat-card accent-blue">
-        <div class="stat-icon si-blue"><lucide-icon [img]="Icons.Users" class="si-icon" /></div>
-        <div class="stat-body">
-          <div class="stat-value">{{ s.totalUsers }}</div>
-          <div class="stat-label">Total users</div>
+    <!-- ── KPI strip ──────────────────────────────────────────────── -->
+    <div class="kpi-grid">
+
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-icon">
+          <lucide-icon [img]="Icons.Users" [size]="20" />
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ s.totalUsers }}</div>
+          <div class="kpi-label">Total users</div>
+        </div>
+        <a [routerLink]="[portalBase() + '/users']" class="kpi-link" title="View users">→</a>
+      </div>
+
+      <div class="kpi-card kpi-green">
+        <div class="kpi-icon">
+          <lucide-icon [img]="Icons.DoorOpen" [size]="20" />
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-value">
+            {{ s.activeBoardrooms }}<span class="kpi-sub"> / {{ s.totalBoardrooms }}</span>
+          </div>
+          <div class="kpi-label">Active rooms</div>
+        </div>
+        <a [routerLink]="[portalBase() + '/boardrooms']" class="kpi-link" title="View boardrooms">→</a>
+      </div>
+
+      <div class="kpi-card kpi-indigo">
+        <div class="kpi-icon">
+          <lucide-icon [img]="Icons.CalendarDays" [size]="20" />
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ s.bookingsToday }}</div>
+          <div class="kpi-label">Bookings today</div>
+        </div>
+        <a [routerLink]="[portalBase() + '/bookings']" class="kpi-link" title="View bookings">→</a>
+      </div>
+
+      <div class="kpi-card kpi-amber">
+        <div class="kpi-icon">
+          <lucide-icon [img]="Icons.Clock" [size]="20" />
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ s.bookingsByStatus.pending }}</div>
+          <div class="kpi-label">Pending approval</div>
+        </div>
+        <a [routerLink]="[portalBase() + '/bookings']" class="kpi-link kpi-link-warn" title="View pending">→</a>
+      </div>
+
+      <div class="kpi-card kpi-violet">
+        <div class="kpi-icon">
+          <lucide-icon [img]="Icons.BookOpen" [size]="20" />
+        </div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ s.bookingsThisWeek }}</div>
+          <div class="kpi-label">This week</div>
         </div>
       </div>
-      <div class="stat-card accent-green">
-        <div class="stat-icon si-green"><lucide-icon [img]="Icons.DoorOpen" class="si-icon" /></div>
-        <div class="stat-body">
-          <div class="stat-value">{{ s.activeBoardrooms }}<span class="stat-total"> / {{ s.totalBoardrooms }}</span></div>
-          <div class="stat-label">Active rooms</div>
-        </div>
-      </div>
-      <div class="stat-card accent-indigo">
-        <div class="stat-icon si-indigo"><lucide-icon [img]="Icons.CalendarDays" class="si-icon" /></div>
-        <div class="stat-body">
-          <div class="stat-value">{{ s.bookingsToday }}</div>
-          <div class="stat-label">Bookings today</div>
-        </div>
-      </div>
-      <div class="stat-card accent-amber">
-        <div class="stat-icon si-amber"><lucide-icon [img]="Icons.Clock" class="si-icon" /></div>
-        <div class="stat-body">
-          <div class="stat-value">{{ s.bookingsByStatus.pending }}</div>
-          <div class="stat-label">Pending approval</div>
-        </div>
-      </div>
+
     </div>
 
-    <div class="dashboard-grid">
+    <!-- ── Main two-column grid ───────────────────────────────────── -->
+    <div class="main-grid">
+
+      <!-- Booking status breakdown -->
       <div class="card">
-        <h2 class="card-title">Bookings by status</h2>
+        <h2 class="card-title">Booking status breakdown</h2>
         <div class="status-bars">
           @for (item of statusItems(s); track item.label) {
             <div class="status-row">
@@ -72,16 +110,26 @@
               <div class="status-row-bar-wrap">
                 <div class="status-row-bar" [style.width.%]="item.pct" [class]="'bar-' + item.key"></div>
               </div>
-              <span class="status-row-count">{{ item.count }}</span>
+              <div class="status-row-right">
+                <span class="status-row-count">{{ item.count }}</span>
+                <span class="status-row-pct">{{ item.pct }}%</span>
+              </div>
             </div>
           }
         </div>
       </div>
 
+      <!-- Next confirmed bookings -->
       <div class="card">
-        <h2 class="card-title">Next confirmed bookings</h2>
+        <div class="card-head-row">
+          <h2 class="card-title-inline">Next confirmed bookings</h2>
+          <a class="card-link" [routerLink]="[portalBase() + '/bookings']">View all →</a>
+        </div>
         @if (s.upcomingBookings.length === 0) {
-          <div class="empty-inner">Nothing on the calendar yet.</div>
+          <div class="empty-inner">
+            <lucide-icon [img]="Icons.CalendarDays" class="empty-lucide-icon" />
+            <p>Nothing on the calendar yet.</p>
+          </div>
         } @else {
           <ol class="upcoming-list">
             @for (b of s.upcomingBookings; track b.id) {
@@ -89,49 +137,70 @@
                 <div class="upcoming-time">{{ b.startTime | date:'dd MMM · HH:mm' }}</div>
                 <div class="upcoming-detail">
                   <strong>{{ b.title }}</strong>
-                  <span class="upcoming-room">{{ b.boardroomName }}</span>
+                  <span class="upcoming-room">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                    {{ b.boardroomName }}
+                  </span>
                 </div>
-                <span class="status status-{{ b.status }}">{{ b.status }}</span>
+                <span class="status-chip" [ngClass]="statusClass(b.status)">{{ statusLabel(b.status) }}</span>
               </li>
             }
           </ol>
         }
       </div>
+
     </div>
 
-    <!-- ── Reporting section ── -->
-    <h2 class="section-heading">Operational Reports</h2>
+    <!-- ── Operational reports ────────────────────────────────────── -->
+    <div class="section-divider">
+      <span class="section-label">
+        <lucide-icon [img]="Icons.BarChart2" [size]="14" />
+        Operational Reports
+      </span>
+    </div>
 
+    <!-- Cancellation KPIs -->
     @if (cancellations(); as cr) {
-      <div class="stats-grid report-summary">
-        <div class="stat-card accent-rose">
-          <div class="stat-icon si-rose"><lucide-icon [img]="Icons.XCircle" class="si-icon" /></div>
-          <div class="stat-body">
-            <div class="stat-value">{{ cr.cancellationRatePct }}%</div>
-            <div class="stat-label">Cancellation rate</div>
+      <div class="report-kpis">
+        <div class="rk-card">
+          <div class="rk-icon rk-rose">
+            <lucide-icon [img]="Icons.XCircle" [size]="18" />
+          </div>
+          <div>
+            <div class="rk-value">{{ cr.cancellationRatePct }}%</div>
+            <div class="rk-label">Cancellation rate</div>
           </div>
         </div>
-        <div class="stat-card accent-amber">
-          <div class="stat-icon si-amber"><lucide-icon [img]="Icons.Clock" class="si-icon" /></div>
-          <div class="stat-body">
-            <div class="stat-value">{{ cr.noShowEstimate }}</div>
-            <div class="stat-label">No-shows (estimate)</div>
+        <div class="rk-card">
+          <div class="rk-icon rk-amber">
+            <lucide-icon [img]="Icons.Clock" [size]="18" />
+          </div>
+          <div>
+            <div class="rk-value">{{ cr.noShowEstimate }}</div>
+            <div class="rk-label">No-shows (estimate)</div>
           </div>
         </div>
-        <div class="stat-card accent-indigo">
-          <div class="stat-icon si-indigo"><lucide-icon [img]="Icons.BookOpen" class="si-icon" /></div>
-          <div class="stat-body">
-            <div class="stat-value">{{ cr.totalCancelled }} / {{ cr.totalBookings }}</div>
-            <div class="stat-label">Cancelled / total</div>
+        <div class="rk-card">
+          <div class="rk-icon rk-indigo">
+            <lucide-icon [img]="Icons.BookOpen" [size]="18" />
+          </div>
+          <div>
+            <div class="rk-value">{{ cr.totalCancelled }} <span class="rk-of">of</span> {{ cr.totalBookings }}</div>
+            <div class="rk-label">Cancelled this period</div>
           </div>
         </div>
       </div>
     }
 
-    <div class="dashboard-grid">
+    <!-- Reports 4-column grid -->
+    <div class="reports-grid">
+
       <!-- Room utilisation -->
-      <div class="card">
-        <h2 class="card-title"><lucide-icon [img]="Icons.TrendingUp" class="card-title-icon" /> Room utilisation</h2>
+      <div class="card card-span-2">
+        <h2 class="card-title">
+          <lucide-icon [img]="Icons.TrendingUp" class="card-title-icon" />
+          Room utilisation
+        </h2>
         @if (utilisation().length === 0) {
           <div class="empty-inner">No data for this period.</div>
         } @else {
@@ -140,49 +209,39 @@
               <div class="util-row">
                 <span class="util-name">{{ r.boardroomName }}</span>
                 <div class="util-bar-wrap">
-                  <div class="util-bar" [style.width.%]="r.utilisationPct"></div>
+                  <div class="util-bar"
+                    [style.width.%]="r.utilisationPct"
+                    [class.util-bar-low]="r.utilisationPct < 25"
+                    [class.util-bar-mid]="r.utilisationPct >= 25 && r.utilisationPct < 60"
+                    [class.util-bar-high]="r.utilisationPct >= 60">
+                  </div>
                 </div>
-                <span class="util-pct">{{ r.utilisationPct }}%</span>
+                <span class="util-pct" [class.util-pct-low]="r.utilisationPct < 25">{{ r.utilisationPct }}%</span>
               </div>
             }
           </div>
         }
       </div>
 
-      <!-- Peak hours -->
+      <!-- Peak hours chart -->
       <div class="card">
-        <h2 class="card-title"><lucide-icon [img]="Icons.BarChart2" class="card-title-icon" /> Peak booking hours</h2>
+        <h2 class="card-title">
+          <lucide-icon [img]="Icons.BarChart2" class="card-title-icon" />
+          Peak booking hours
+        </h2>
         @if (peakHours().length === 0) {
           <div class="empty-inner">No data for this period.</div>
         } @else {
           <div class="peak-chart">
             @for (h of peakHours(); track h.hour) {
-              <div class="peak-col">
+              <div class="peak-col" [title]="h.hour + ':00 — ' + h.bookingCount + ' bookings'">
                 <div class="peak-bar-wrap">
                   <div class="peak-bar" [style.height.%]="(h.bookingCount / maxPeakCount()) * 100"></div>
                 </div>
-                <div class="peak-label">{{ h.hour }}:00</div>
+                <div class="peak-label">{{ h.hour }}h</div>
               </div>
             }
           </div>
-        }
-      </div>
-
-      <!-- Most used rooms -->
-      <div class="card">
-        <h2 class="card-title">Most-used rooms (this period)</h2>
-        @if (mostUsed().length === 0) {
-          <div class="empty-inner">No data yet.</div>
-        } @else {
-          <ol class="rank-list">
-            @for (r of mostUsed(); track r.boardroomId; let i = $index) {
-              <li class="rank-item">
-                <span class="rank-pos">{{ i + 1 }}</span>
-                <span class="rank-name">{{ r.boardroomName }}</span>
-                <span class="rank-count">{{ r.bookingCount }} bookings</span>
-              </li>
-            }
-          </ol>
         }
       </div>
 
@@ -193,56 +252,140 @@
           <div class="empty-inner">No data yet.</div>
         } @else {
           <div class="dept-table">
-            @for (d of byDepartment(); track d.department) {
+            @for (d of byDepartment(); track d.department; let i = $index) {
               <div class="dept-row">
-                <span class="dept-name">{{ d.department }}</span>
+                <div class="dept-row-left">
+                  <span class="dept-rank">{{ i + 1 }}</span>
+                  <span class="dept-name">{{ d.department }}</span>
+                </div>
+                <div class="dept-bar-wrap">
+                  <div class="dept-bar" [style.width.%]="(d.bookingCount / byDepartment()[0].bookingCount) * 100"></div>
+                </div>
                 <span class="dept-count">{{ d.bookingCount }}</span>
               </div>
             }
           </div>
         }
       </div>
+
+      <!-- Most used rooms -->
+      <div class="card">
+        <h2 class="card-title">
+          <lucide-icon [img]="Icons.TrendingUp" class="card-title-icon" />
+          Most-used rooms
+        </h2>
+        @if (mostUsed().length === 0) {
+          <div class="empty-inner">No data yet.</div>
+        } @else {
+          <ol class="rank-list">
+            @for (r of mostUsed(); track r.boardroomId; let i = $index) {
+              <li class="rank-item">
+                <span class="rank-pos rank-pos-{{ i + 1 <= 3 ? 'top' : 'default' }}">{{ i + 1 }}</span>
+                <span class="rank-name">{{ r.boardroomName }}</span>
+                <span class="rank-count">{{ r.bookingCount }}</span>
+              </li>
+            }
+          </ol>
+        }
+      </div>
+
+      <!-- Least used rooms -->
+      <div class="card">
+        <h2 class="card-title">
+          <lucide-icon [img]="Icons.TrendingDown" class="card-title-icon" />
+          Least-used rooms
+        </h2>
+        @if (leastUsed().length === 0) {
+          <div class="empty-inner">No data yet.</div>
+        } @else {
+          <ol class="rank-list">
+            @for (r of leastUsed(); track r.boardroomId; let i = $index) {
+              <li class="rank-item">
+                <span class="rank-pos rank-pos-muted">{{ i + 1 }}</span>
+                <span class="rank-name">{{ r.boardroomName }}</span>
+                <span class="rank-count rank-count-muted">{{ r.bookingCount }}</span>
+              </li>
+            }
+          </ol>
+        }
+      </div>
+
     </div>
 
+  <!-- ══════════════════════ EMPLOYEE VIEW ══════════════════════════ -->
   } @else if (!isAdmin() && employeeStats(); as s) {
 
-    <div class="stats-grid">
-      <div class="stat-card accent-indigo">
-        <div class="stat-icon si-indigo"><lucide-icon [img]="Icons.CalendarDays" class="si-icon" /></div>
-        <div class="stat-body">
-          <div class="stat-value">{{ s.myUpcomingBookings }}</div>
-          <div class="stat-label">Upcoming bookings</div>
+    <!-- Stat cards -->
+    <div class="kpi-grid">
+      <div class="kpi-card kpi-indigo">
+        <div class="kpi-icon"><lucide-icon [img]="Icons.CalendarDays" [size]="20" /></div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ s.myUpcomingBookings }}</div>
+          <div class="kpi-label">Upcoming bookings</div>
         </div>
       </div>
-      <div class="stat-card accent-amber">
-        <div class="stat-icon si-amber"><lucide-icon [img]="Icons.Clock" class="si-icon" /></div>
-        <div class="stat-body">
-          <div class="stat-value">{{ s.myPendingBookings }}</div>
-          <div class="stat-label">Awaiting approval</div>
+      <div class="kpi-card kpi-amber">
+        <div class="kpi-icon"><lucide-icon [img]="Icons.Clock" [size]="20" /></div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ s.myPendingBookings }}</div>
+          <div class="kpi-label">Awaiting approval</div>
         </div>
       </div>
-      <div class="stat-card accent-green">
-        <div class="stat-icon si-green"><lucide-icon [img]="Icons.DoorOpen" class="si-icon" /></div>
-        <div class="stat-body">
-          <div class="stat-value">{{ s.activeBoardrooms }}</div>
-          <div class="stat-label">Available rooms</div>
+      <div class="kpi-card kpi-green">
+        <div class="kpi-icon"><lucide-icon [img]="Icons.DoorOpen" [size]="20" /></div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ s.activeBoardrooms }}</div>
+          <div class="kpi-label">Available rooms</div>
         </div>
       </div>
-      <div class="stat-card accent-rose">
-        <div class="stat-icon si-rose"><lucide-icon [img]="Icons.Bell" class="si-icon" /></div>
-        <div class="stat-body">
-          <div class="stat-value">{{ s.unreadNotifications }}</div>
-          <div class="stat-label">Unread notifications</div>
+      <div class="kpi-card kpi-rose">
+        <div class="kpi-icon"><lucide-icon [img]="Icons.Bell" [size]="20" /></div>
+        <div class="kpi-body">
+          <div class="kpi-value">{{ s.unreadNotifications }}</div>
+          <div class="kpi-label">Unread notifications</div>
         </div>
       </div>
     </div>
 
+    <!-- Quick actions -->
+    <div class="quick-actions">
+      <a class="quick-action-card" [routerLink]="[portalBase() + '/bookings']">
+        <div class="qa-icon si-indigo"><lucide-icon [img]="Icons.CalendarDays" class="si-icon" /></div>
+        <div class="qa-body">
+          <div class="qa-label">New Booking</div>
+          <div class="qa-sub">Reserve a boardroom</div>
+        </div>
+        <span class="qa-arrow">→</span>
+      </a>
+      <a class="quick-action-card" [routerLink]="[portalBase() + '/boardrooms']">
+        <div class="qa-icon si-green"><lucide-icon [img]="Icons.DoorOpen" class="si-icon" /></div>
+        <div class="qa-body">
+          <div class="qa-label">Browse Rooms</div>
+          <div class="qa-sub">Check availability</div>
+        </div>
+        <span class="qa-arrow">→</span>
+      </a>
+      <a class="quick-action-card" [routerLink]="[portalBase() + '/calendar']">
+        <div class="qa-icon si-amber"><lucide-icon [img]="Icons.BookOpen" class="si-icon" /></div>
+        <div class="qa-body">
+          <div class="qa-label">Calendar</div>
+          <div class="qa-sub">View all bookings</div>
+        </div>
+        <span class="qa-arrow">→</span>
+      </a>
+    </div>
+
+    <!-- Upcoming bookings -->
     <div class="card">
-      <h2 class="card-title">Your upcoming bookings</h2>
+      <div class="card-head-row">
+        <h2 class="card-title-inline">Your upcoming bookings</h2>
+        <a class="card-link" [routerLink]="[portalBase() + '/bookings']">View all →</a>
+      </div>
       @if (s.upcomingBookings.length === 0) {
         <div class="empty-inner">
           <lucide-icon [img]="Icons.CalendarDays" class="empty-lucide-icon" />
-          <p>No upcoming bookings. <a [routerLink]="['/employee/bookings']">Book a room</a></p>
+          <p>No upcoming bookings yet.</p>
+          <a [routerLink]="[portalBase() + '/bookings']">Book a room now</a>
         </div>
       } @else {
         <ol class="upcoming-list">
@@ -251,9 +394,12 @@
               <div class="upcoming-time">{{ b.startTime | date:'dd MMM · HH:mm' }}</div>
               <div class="upcoming-detail">
                 <strong>{{ b.title }}</strong>
-                <span class="upcoming-room">{{ b.boardroomName }}</span>
+                <span class="upcoming-room">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  {{ b.boardroomName }}
+                </span>
               </div>
-              <span class="status status-{{ b.status }}">{{ b.status }}</span>
+              <span class="status-chip" [ngClass]="statusClass(b.status)">{{ statusLabel(b.status) }}</span>
             </li>
           }
         </ol>

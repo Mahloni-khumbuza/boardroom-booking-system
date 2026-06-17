@@ -1,12 +1,12 @@
-<section class="page">
+<section class="page" (click)="closeMenu()">
 
   <!-- Page header -->
   <header class="page-head">
     <div class="page-head-text">
       <h1>Bookings</h1>
       <p class="lede">
-        @if (isAdmin()) {
-          {{ mineOnly() ? 'Your bookings.' : 'All bookings across the organisation.' }}
+        @if (canSeeAllBookings()) {
+          {{ mineOnly() ? 'Showing your bookings only.' : 'All bookings across the organisation.' }}
         } @else {
           Your bookings. Pending bookings await admin approval before they are confirmed.
         }
@@ -14,7 +14,7 @@
     </div>
     @if (!showCreate()) {
       <div class="page-head-actions">
-        @if (isAdmin()) {
+        @if (canSeeAllBookings()) {
           <label class="mine-toggle">
             <input type="checkbox" [checked]="mineOnly()" (change)="toggleMine()" />
             <span>My bookings only</span>
@@ -24,6 +24,7 @@
       </div>
     }
   </header>
+
 
   <!-- Error banner -->
   @if (error(); as err) {
@@ -96,9 +97,15 @@
                 <span class="f-hint-inline">(max {{ r.capacity }})</span>
               }
             </span>
-            <input type="number" formControlName="attendeeCount" min="1" />
+            <input type="number" formControlName="attendeeCount" min="1"
+              [max]="selectedBoardroom()?.capacity ?? 9999" />
             @if (form.controls.attendeeCount.touched && form.controls.attendeeCount.invalid) {
               <span class="f-error">At least 1 attendee required.</span>
+            }
+            @if (selectedBoardroom(); as r) {
+              @if (form.controls.attendeeCount.value > r.capacity) {
+                <span class="f-error">Exceeds room capacity of {{ r.capacity }}.</span>
+              }
             }
           </label>
         </div>
@@ -171,17 +178,17 @@
     </div>
   }
 
-  <!-- Bookings tabs — hidden while form is open -->
+  <!-- Bookings tabs — hidden while form is open — mirrors §5.3 lifecycle -->
   @if (!showCreate()) {
   @if (loading()) {
     <app-spinner label="Loading bookings…" />
   } @else {
     <mat-tab-group animationDuration="150ms" class="bookings-tabs">
 
-      <!-- Upcoming -->
+      <!-- APPROVED — blocks availability, next: update/cancel/complete/no-show -->
       <mat-tab>
         <ng-template mat-tab-label>
-          Upcoming
+          Confirmed
           @if (upcomingBookings().length) {
             <span class="tab-badge">{{ upcomingBookings().length }}</span>
           }
@@ -190,17 +197,18 @@
           <div class="tab-body">
             @if (upcomingBookings().length === 0) {
               <div class="empty-state">
-                <p class="empty-title">No upcoming bookings</p>
+                <p class="empty-title">No confirmed bookings</p>
                 <p class="empty-sub">Click <strong>+ New Booking</strong> to reserve a room.</p>
               </div>
             } @else {
-              <ng-container *ngTemplateOutlet="bookingsTable; context: { list: upcomingBookings() }" />
+              <ng-container *ngTemplateOutlet="bookingsTable; context: { list: upcomingPaged() }" />
+              <ng-container *ngTemplateOutlet="pagination; context: { total: upcomingBookings().length, page: upcomingPage(), set: upcomingPage }" />
             }
           </div>
         </ng-template>
       </mat-tab>
 
-      <!-- Pending -->
+      <!-- PENDING_APPROVAL — blocks availability, next: approve/reject/cancel -->
       <mat-tab>
         <ng-template mat-tab-label>
           Pending Approval
@@ -215,75 +223,30 @@
                 <p class="empty-title">No pending approvals</p>
               </div>
             } @else {
-              <ng-container *ngTemplateOutlet="bookingsTable; context: { list: pendingBookings() }" />
+              <ng-container *ngTemplateOutlet="bookingsTable; context: { list: pendingPaged() }" />
+              <ng-container *ngTemplateOutlet="pagination; context: { total: pendingBookings().length, page: pendingPage(), set: pendingPage }" />
             }
           </div>
         </ng-template>
       </mat-tab>
 
-      <!-- Past -->
-      <mat-tab label="Past">
+      <!-- COMPLETED + NO_SHOW — view/report only -->
+      <mat-tab label="Completed">
         <ng-template matTabContent>
           <div class="tab-body">
             @if (pastBookings().length === 0) {
               <div class="empty-state">
-                <p class="empty-title">No past bookings</p>
+                <p class="empty-title">No completed bookings</p>
               </div>
             } @else {
-              <table class="b-table">
-                <thead>
-                  <tr>
-                    <th>Title</th>
-                    <th>Boardroom</th>
-                    <th>Date &amp; Time</th>
-                    <th>Booked by</th>
-                    <th>Status</th>
-                    @if (isAdmin()) { <th class="th-actions"></th> }
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (b of pastBookings(); track b.id) {
-                    <tr>
-                      <td class="td-title">
-                        <strong>{{ b.title }}</strong>
-                        @if (b.description) {
-                          <div class="td-sub">{{ b.description }}</div>
-                        }
-                      </td>
-                      <td class="td-muted">{{ b.boardroom.name }}</td>
-                      <td class="td-time">
-                        {{ b.startTime | date:'dd MMM yyyy' }}<br/>
-                        <span class="td-sub">{{ b.startTime | date:'HH:mm' }} – {{ b.endTime | date:'HH:mm' }}</span>
-                      </td>
-                      <td class="td-muted">{{ bookerLabel(b) }}</td>
-                      <td>
-                        @if (b.status === 'completed') {
-                          <span class="badge badge-completed">Completed</span>
-                        } @else {
-                          <span class="badge badge-awaiting">Awaiting completion</span>
-                        }
-                      </td>
-                      @if (isAdmin()) {
-                        <td class="td-actions">
-                          @if (canComplete(b)) {
-                            <button class="btn-action btn-action-primary" [disabled]="busyId() === b.id" (click)="complete(b)">
-                              {{ busyId() === b.id ? 'Saving…' : 'Mark Complete' }}
-                            </button>
-                          } @else if (b.status === 'completed') {
-                            <span class="done-check">&#10003; Done</span>
-                          }
-                        </td>
-                      }
-                    </tr>
-                  }
-                </tbody>
-              </table>
+              <ng-container *ngTemplateOutlet="bookingsTable; context: { list: pastPaged() }" />
+              <ng-container *ngTemplateOutlet="pagination; context: { total: pastBookings().length, page: pastPage(), set: pastPage }" />
             }
           </div>
         </ng-template>
       </mat-tab>
 
-      <!-- Cancelled -->
+      <!-- CANCELLED — view only, Admin can permanently delete -->
       <mat-tab label="Cancelled">
         <ng-template matTabContent>
           <div class="tab-body">
@@ -292,7 +255,30 @@
                 <p class="empty-title">No cancelled bookings</p>
               </div>
             } @else {
-              <ng-container *ngTemplateOutlet="bookingsTable; context: { list: cancelledBookings() }" />
+              <ng-container *ngTemplateOutlet="bookingsTable; context: { list: cancelledPaged() }" />
+              <ng-container *ngTemplateOutlet="pagination; context: { total: cancelledBookings().length, page: cancelledPage(), set: cancelledPage }" />
+            }
+          </div>
+        </ng-template>
+      </mat-tab>
+
+      <!-- REJECTED — view only, Admin can permanently delete -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          Rejected
+          @if (rejectedBookings().length) {
+            <span class="tab-badge tab-badge-red">{{ rejectedBookings().length }}</span>
+          }
+        </ng-template>
+        <ng-template matTabContent>
+          <div class="tab-body">
+            @if (rejectedBookings().length === 0) {
+              <div class="empty-state">
+                <p class="empty-title">No rejected bookings</p>
+              </div>
+            } @else {
+              <ng-container *ngTemplateOutlet="bookingsTable; context: { list: rejectedPaged() }" />
+              <ng-container *ngTemplateOutlet="pagination; context: { total: rejectedBookings().length, page: rejectedPage(), set: rejectedPage }" />
             }
           </div>
         </ng-template>
@@ -328,34 +314,81 @@
           </td>
           <td class="td-muted">{{ b.boardroom.name }}</td>
           <td class="td-time">
-            {{ b.startTime | date:'dd MMM yyyy' }}<br/>
-            <span class="td-sub">{{ b.startTime | date:'HH:mm' }} – {{ b.endTime | date:'HH:mm' }}</span>
+            {{ b.startDateTime | date:'dd MMM yyyy' }}<br/>
+            <span class="td-sub">{{ b.startDateTime | date:'HH:mm' }} – {{ b.endDateTime | date:'HH:mm' }}</span>
           </td>
           <td class="td-center">{{ b.attendeeCount }}<span class="td-cap">/{{ b.boardroom.capacity }}</span></td>
           <td class="td-muted">{{ bookerLabel(b) }}</td>
-          <td>
-            <span class="badge badge-{{ b.status }}">{{ statusLabel(b.status) }}</span>
-          </td>
+          <td><app-status-badge [status]="b.status" /></td>
           <td class="td-actions">
-            @if (canApprove(b)) {
-              <button class="btn-action btn-action-primary" [disabled]="busyId() === b.id" (click)="approve(b)">
-                Approve
-              </button>
-            }
-            @if (canEdit(b)) {
-              <button class="btn-action btn-action-ghost" [disabled]="busyId() === b.id" (click)="openEdit(b)">
-                Edit
-              </button>
-            }
-            @if (canCancel(b)) {
-              <button class="btn-action btn-action-danger" [disabled]="busyId() === b.id" (click)="cancel(b)">
-                Cancel
-              </button>
-            }
-            @if (canDelete(b)) {
-              <button class="btn-action btn-action-danger" [disabled]="busyId() === b.id" (click)="deleteBooking(b)">
-                Delete
-              </button>
+            @if (busyId() === b.id) {
+              <span class="action-busy">
+                <svg class="spin-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+              </span>
+            } @else if (hasAnyAction(b)) {
+              <div class="action-menu-wrap">
+                <button
+                  class="action-menu-btn"
+                  [class.active]="openMenuId() === b.id"
+                  (click)="toggleMenu(b.id, $event)"
+                  aria-label="Actions"
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                    <circle cx="5"  cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>
+                  </svg>
+                </button>
+
+                @if (openMenuId() === b.id) {
+                  <div class="action-dropdown" (click)="$event.stopPropagation()">
+                    @if (canApprove(b)) {
+                      <button class="dd-item dd-approve" (click)="approve(b); closeMenu()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                        Approve
+                      </button>
+                    }
+                    @if (canReject(b)) {
+                      <button class="dd-item dd-danger" (click)="openReject(b); closeMenu()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                        Reject
+                      </button>
+                    }
+                    @if (canApprove(b) || canReject(b)) {
+                      <div class="dd-divider"></div>
+                    }
+                    @if (canEdit(b)) {
+                      <button class="dd-item" (click)="openEdit(b); closeMenu()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        Edit
+                      </button>
+                    }
+                    @if (canComplete(b)) {
+                      <button class="dd-item dd-success" (click)="complete(b); closeMenu()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg>
+                        Mark Complete
+                      </button>
+                    }
+                    @if (canNoShow(b)) {
+                      <button class="dd-item dd-muted" (click)="noShow(b); closeMenu()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
+                        No-Show
+                      </button>
+                    }
+                    @if (canCancel(b)) {
+                      <button class="dd-item dd-danger" (click)="cancel(b); closeMenu()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
+                        Cancel Booking
+                      </button>
+                    }
+                    @if (canDelete(b)) {
+                      @if (canEdit(b) || canCancel(b)) { <div class="dd-divider"></div> }
+                      <button class="dd-item dd-delete" (click)="deleteBooking(b); closeMenu()">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+                        Delete
+                      </button>
+                    }
+                  </div>
+                }
+              </div>
             }
           </td>
         </tr>
@@ -363,3 +396,22 @@
     </tbody>
   </table>
 </ng-template>
+
+<!-- Pagination controls -->
+<ng-template #pagination let-total="total" let-page="page" let-set="set">
+  @if (totalPages(total) > 1) {
+    <div class="pagination">
+      <button class="pg-btn" [disabled]="page === 0" (click)="set.set(page - 1)">&#8592; Prev</button>
+      <span class="pg-info">Page {{ page + 1 }} of {{ totalPages(total) }}</span>
+      <button class="pg-btn" [disabled]="page >= totalPages(total) - 1" (click)="set.set(page + 1)">Next &#8594;</button>
+    </div>
+  }
+</ng-template>
+
+<!-- Confirmation modal (handles approve, reject, cancel, no-show, delete) -->
+<app-confirmation-modal
+  [open]="confirmOpen()"
+  [config]="confirmConfig()"
+  (confirmed)="onConfirmed($event)"
+  (cancelled)="onCancelled()"
+/>
