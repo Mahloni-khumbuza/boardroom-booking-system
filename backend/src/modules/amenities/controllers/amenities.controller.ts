@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiCreatedResponse,
   ApiNoContentResponse,
   ApiOkResponse,
@@ -23,10 +24,10 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { Permissions } from '../../../shared/decorators/permissions.decorator';
 import { PermissionsGuard } from '../../../shared/guards/permissions.guard';
 import { Permission } from '../../../shared/constants/permissions';
-import { CreateAmenityDto } from '../dto/create-amenity.dto';
-import { AmenityResponseDto } from '../dto/amenity-response.dto';
-import { UpdateAmenityDto } from '../dto/update-amenity.dto';
 import { AmenitiesService } from '../services/amenities.service';
+import { AmenityResponseDto } from '../dto/amenity-response.dto';
+import { CreateAmenityDto } from '../dto/create-amenity.dto';
+import { UpdateAmenityDto } from '../dto/update-amenity.dto';
 
 @ApiTags('amenities')
 @ApiBearerAuth()
@@ -54,6 +55,7 @@ export class AmenitiesController {
   @Post()
   @Permissions(Permission.AMENITIES_WRITE)
   @ApiOperation({ summary: 'Create an amenity', operationId: 'createAmenity' })
+  @ApiBody({ type: CreateAmenityDto })
   @ApiCreatedResponse({ type: AmenityResponseDto })
   create(@Body() dto: CreateAmenityDto): Promise<AmenityResponseDto> {
     return this.amenitiesService.create(dto);
@@ -62,6 +64,7 @@ export class AmenitiesController {
   @Patch(':id')
   @Permissions(Permission.AMENITIES_WRITE)
   @ApiOperation({ summary: 'Update an amenity', operationId: 'updateAmenity' })
+  @ApiBody({ type: UpdateAmenityDto })
   @ApiOkResponse({ type: AmenityResponseDto })
   update(
     @Param('id', new ParseUUIDPipe()) id: string,

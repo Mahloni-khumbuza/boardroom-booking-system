@@ -8,7 +8,6 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
-  Req,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -20,19 +19,14 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
 import { Permissions } from '../../../shared/decorators/permissions.decorator';
 import { PermissionsGuard } from '../../../shared/guards/permissions.guard';
 import { Permission } from '../../../shared/constants/permissions';
-import { CreateNotificationDto } from '../dto/create-notification.dto';
-import {
-  NotificationResponseDto,
-  UnreadCountResponseDto,
-} from '../dto/notification-response.dto';
+import type { JwtPayload } from '../../auth/services/auth.service';
 import { NotificationsService } from '../services/notifications.service';
-
-interface AuthedRequest {
-  user: { sub: string };
-}
+import { CreateNotificationDto } from '../dto/create-notification.dto';
+import { NotificationResponseDto, UnreadCountResponseDto } from '../dto/notification-response.dto';
 
 @ApiTags('notifications')
 @ApiBearerAuth()
@@ -45,16 +39,16 @@ export class NotificationsController {
   @Permissions(Permission.NOTIFICATIONS_READ)
   @ApiOperation({ summary: 'List notifications for current user', operationId: 'listNotifications' })
   @ApiOkResponse({ type: [NotificationResponseDto] })
-  list(@Req() req: AuthedRequest): Promise<NotificationResponseDto[]> {
-    return this.service.listForUser(req.user.sub);
+  list(@CurrentUser() user: JwtPayload): Promise<NotificationResponseDto[]> {
+    return this.service.listForUser(user.sub);
   }
 
   @Get('unread-count')
   @Permissions(Permission.NOTIFICATIONS_READ)
   @ApiOperation({ summary: 'Get unread notification count', operationId: 'getUnreadCount' })
   @ApiOkResponse({ type: UnreadCountResponseDto })
-  async unreadCount(@Req() req: AuthedRequest): Promise<UnreadCountResponseDto> {
-    return { unread: await this.service.countUnreadForUser(req.user.sub) };
+  async unreadCount(@CurrentUser() user: JwtPayload): Promise<UnreadCountResponseDto> {
+    return { unread: await this.service.countUnreadForUser(user.sub) };
   }
 
   @Post()
@@ -72,9 +66,9 @@ export class NotificationsController {
   @ApiOkResponse({ type: NotificationResponseDto })
   markRead(
     @Param('id', new ParseUUIDPipe()) id: string,
-    @Req() req: AuthedRequest,
+    @CurrentUser() user: JwtPayload,
   ): Promise<NotificationResponseDto> {
-    return this.service.markRead(id, req.user.sub);
+    return this.service.markRead(id, user.sub);
   }
 
   @Post('read-all')
@@ -82,8 +76,8 @@ export class NotificationsController {
   @Permissions(Permission.NOTIFICATIONS_READ)
   @ApiOperation({ summary: 'Mark all notifications as read', operationId: 'markAllNotificationsRead' })
   @ApiOkResponse({ schema: { properties: { updated: { type: 'number' } } } })
-  markAllRead(@Req() req: AuthedRequest): Promise<{ updated: number }> {
-    return this.service.markAllRead(req.user.sub);
+  markAllRead(@CurrentUser() user: JwtPayload): Promise<{ updated: number }> {
+    return this.service.markAllRead(user.sub);
   }
 
   @Delete(':id')
@@ -93,8 +87,8 @@ export class NotificationsController {
   @ApiNoContentResponse()
   remove(
     @Param('id', new ParseUUIDPipe()) id: string,
-    @Req() req: AuthedRequest,
+    @CurrentUser() user: JwtPayload,
   ): Promise<void> {
-    return this.service.remove(id, req.user.sub);
+    return this.service.remove(id, user.sub);
   }
 }

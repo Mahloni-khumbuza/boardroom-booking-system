@@ -20,12 +20,12 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import type { JwtPayload } from '../../auth/services/auth.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../../../shared/decorators/current-user.decorator';
 import { Roles } from '../../../shared/decorators/roles.decorator';
 import { RolesGuard } from '../../../shared/guards/roles.guard';
 import { RoleName } from '../../../shared/constants/role-name';
+import type { JwtPayload } from '../../auth/services/auth.service';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { UserResponseDto } from '../dto/user-response.dto';
@@ -62,8 +62,8 @@ export class UsersController {
   }
 
   @Post()
-  @Roles(RoleName.ADMIN, RoleName.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Create internal user', operationId: 'createUser' })
+  @Roles(RoleName.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Create internal user (SuperAdmin only)', operationId: 'createUser' })
   @ApiBody({ type: CreateUserDto })
   @ApiCreatedResponse({ type: UserResponseDto, description: 'User created successfully' })
   create(
@@ -76,6 +76,7 @@ export class UsersController {
   @Patch(':id')
   @Roles(RoleName.ADMIN, RoleName.SUPER_ADMIN)
   @ApiOperation({ summary: 'Update a user', operationId: 'updateUser' })
+  @ApiBody({ type: UpdateUserDto })
   @ApiOkResponse({ type: UserResponseDto })
   update(
     @Param('id', new ParseUUIDPipe()) id: string,

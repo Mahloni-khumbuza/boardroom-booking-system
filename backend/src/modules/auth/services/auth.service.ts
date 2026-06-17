@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -7,6 +7,7 @@ import { UsersService } from '../../users/services/users.service';
 import { User } from '../../users/entities/user.entity';
 import { LoginDto } from '../dto/login.dto';
 import { LoginResponseDto } from '../dto/login-response.dto';
+import { RegisterDto } from '../dto/register.dto';
 
 export interface JwtPayload {
   sub: string;
@@ -17,12 +18,28 @@ export interface JwtPayload {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly auditLogs: AuditLogsService,
   ) {}
+
+  async register(dto: RegisterDto): Promise<LoginResponseDto> {
+    const created = await this.usersService.createEmployee(dto);
+    const user = await this.usersService.findByEmail(created.email);
+    if (!user) throw new UnauthorizedException('Registration failed');
+    await this.auditLogs.record({
+      action: 'auth.register',
+      entity: 'user',
+      entityId: user.id,
+      actorId: user.id,
+      metadata: { email: user.email },
+    });
+    return this.issueToken(user);
+  }
 
   async login(dto: LoginDto): Promise<LoginResponseDto> {
     const user = await this.usersService.findByEmail(dto.email);
