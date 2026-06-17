@@ -38,7 +38,8 @@ export class RegisterPage {
     this.auth.register(this.form.getRawValue()).subscribe({
       next: () => {
         this.loading.set(false);
-        void this.router.navigateByUrl('/login?registered=1');
+        // Backend auto-logs in on register; navigate to the role home path
+        void this.router.navigateByUrl(this.auth.homePath());
       },
       error: (err) => {
         this.loading.set(false);

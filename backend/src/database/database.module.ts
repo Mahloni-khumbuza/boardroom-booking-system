@@ -1,8 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { Amenity } from '../modules/amenities/entities/amenity.entity';
+import { Boardroom } from '../modules/boardrooms/entities/boardroom.entity';
 import { Permission } from '../modules/permissions/entities/permission.entity';
 import { Role } from '../modules/roles/entities/role.entity';
+import { SystemSetting } from '../modules/system-settings/entities/system-setting.entity';
 import { User } from '../modules/users/entities/user.entity';
 import { SeederService } from './seeds/seeder.service';
 
@@ -25,7 +28,7 @@ import { SeederService } from './seeds/seeder.service';
           configService.get<string>('DB_LOGGING', 'false').toLowerCase() === 'true',
       }),
     }),
-    TypeOrmModule.forFeature([Permission, Role, User]),
+    TypeOrmModule.forFeature([Permission, Role, User, SystemSetting, Amenity, Boardroom]),
   ],
   providers: [SeederService],
 })

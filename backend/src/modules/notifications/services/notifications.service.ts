@@ -21,34 +21,22 @@ export class NotificationsService {
   ) {}
 
   async listForUser(userId: string): Promise<Notification[]> {
-    try {
-      return await this.repo.find({ where: { recipientId: userId }, order: { createdAt: 'DESC' }, take: 100 });
-    } catch (error) {
-      throw error;
-    }
+    return this.repo.find({ where: { recipientId: userId }, order: { createdAt: 'DESC' }, take: 100 });
   }
 
   async countUnreadForUser(userId: string): Promise<number> {
-    try {
-      return await this.repo.count({ where: { recipientId: userId, isRead: false } });
-    } catch (error) {
-      throw error;
-    }
+    return this.repo.count({ where: { recipientId: userId, isRead: false } });
   }
 
   async create(dto: CreateNotificationDto): Promise<Notification> {
-    try {
-      const entry = this.repo.create({
-        type: dto.type ?? NotificationType.Info,
-        title: dto.title,
-        message: dto.message,
-        recipientId: dto.recipientId,
-        isRead: false,
-      });
-      return await this.repo.save(entry);
-    } catch (error) {
-      throw error;
-    }
+    const entry = this.repo.create({
+      type: dto.type ?? NotificationType.Info,
+      title: dto.title,
+      message: dto.message,
+      recipientId: dto.recipientId,
+      isRead: false,
+    });
+    return this.repo.save(entry);
   }
 
   async notify(input: NotifyInput): Promise<Notification | null> {
@@ -72,31 +60,19 @@ export class NotificationsService {
   }
 
   async markRead(id: string, userId: string): Promise<Notification> {
-    try {
-      const note = await this.repo.findOne({ where: { id, recipientId: userId } });
-      if (!note) throw new NotFoundException(`Notification ${id} not found`);
-      note.isRead = true;
-      return await this.repo.save(note);
-    } catch (error) {
-      throw error;
-    }
+    const note = await this.repo.findOne({ where: { id, recipientId: userId } });
+    if (!note) throw new NotFoundException(`Notification ${id} not found`);
+    note.isRead = true;
+    return this.repo.save(note);
   }
 
   async markAllRead(userId: string): Promise<{ updated: number }> {
-    try {
-      const result = await this.repo.update({ recipientId: userId, isRead: false }, { isRead: true });
-      return { updated: result.affected ?? 0 };
-    } catch (error) {
-      throw error;
-    }
+    const result = await this.repo.update({ recipientId: userId, isRead: false }, { isRead: true });
+    return { updated: result.affected ?? 0 };
   }
 
   async remove(id: string, userId: string): Promise<void> {
-    try {
-      const result = await this.repo.delete({ id, recipientId: userId });
-      if (result.affected === 0) throw new NotFoundException(`Notification ${id} not found`);
-    } catch (error) {
-      throw error;
-    }
+    const result = await this.repo.delete({ id, recipientId: userId });
+    if (result.affected === 0) throw new NotFoundException(`Notification ${id} not found`);
   }
 }

@@ -3,6 +3,12 @@ export interface BlockBoardroomRef {
   name: string;
 }
 
+export interface BlockUserRef {
+  id: string;
+  firstName: string;
+  lastName: string;
+}
+
 export interface BoardroomBlock {
   id: string;
   boardroom: BlockBoardroomRef;
@@ -11,6 +17,7 @@ export interface BoardroomBlock {
   endTime: string;
   reason: string;
   isActive: boolean;
+  createdBy: BlockUserRef | null;
   createdById: string | null;
   createdAt: string;
   updatedAt: string;

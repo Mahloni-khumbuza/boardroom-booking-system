@@ -62,8 +62,8 @@ export class UsersController {
   }
 
   @Post()
-  @Roles(RoleName.ADMIN, RoleName.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Create internal user', operationId: 'createUser' })
+  @Roles(RoleName.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Create internal user (SuperAdmin only)', operationId: 'createUser' })
   @ApiBody({ type: CreateUserDto })
   @ApiCreatedResponse({ type: UserResponseDto, description: 'User created successfully' })
   create(

@@ -6,6 +6,7 @@ import { SpinnerComponent } from '../../../shared/components/spinner/spinner.com
 import { ToastService } from '../../../core/services/toast.service';
 import { AdminUser } from '../models/user.model';
 import { UsersService } from '../services/users.service';
+import { extractErrorMessage } from '../../../shared/utils/error.utils';
 
 @Component({
   selector: 'app-profile-page',
@@ -54,7 +55,7 @@ export class ProfilePage {
         this.loading.set(false);
       },
       error: (err) => {
-        this.error.set(this.errorMessage(err));
+        this.error.set(extractErrorMessage(err));
         this.loading.set(false);
       }
     });
@@ -91,7 +92,7 @@ export class ProfilePage {
         this.toast.success('Profile updated.');
       },
       error: (err) => {
-        this.error.set(this.errorMessage(err));
+        this.error.set(extractErrorMessage(err));
         this.saving.set(false);
       }
     });
@@ -107,10 +108,4 @@ export class ProfilePage {
     return ((u.firstName?.[0] ?? '') + (u.lastName?.[0] ?? '')).toUpperCase() || u.email[0].toUpperCase();
   }
 
-  private errorMessage(err: unknown): string {
-    const e = err as { error?: { message?: string | string[] }; message?: string };
-    const msg = e?.error?.message;
-    if (Array.isArray(msg)) return msg.join(', ');
-    return msg || e?.message || 'Something went wrong.';
-  }
 }

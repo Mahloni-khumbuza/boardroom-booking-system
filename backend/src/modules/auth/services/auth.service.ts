@@ -7,6 +7,7 @@ import { UsersService } from '../../users/services/users.service';
 import { User } from '../../users/entities/user.entity';
 import { LoginDto } from '../dto/login.dto';
 import { LoginResponseDto } from '../dto/login-response.dto';
+import { RegisterDto } from '../dto/register.dto';
 
 export interface JwtPayload {
   sub: string;
@@ -26,30 +27,40 @@ export class AuthService {
     private readonly auditLogs: AuditLogsService,
   ) {}
 
+  async register(dto: RegisterDto): Promise<LoginResponseDto> {
+    const created = await this.usersService.createEmployee(dto);
+    const user = await this.usersService.findByEmail(created.email);
+    if (!user) throw new UnauthorizedException('Registration failed');
+    await this.auditLogs.record({
+      action: 'auth.register',
+      entity: 'user',
+      entityId: user.id,
+      actorId: user.id,
+      metadata: { email: user.email },
+    });
+    return this.issueToken(user);
+  }
+
   async login(dto: LoginDto): Promise<LoginResponseDto> {
-    try {
-      const user = await this.usersService.findByEmail(dto.email);
-      if (!user || !user.isActive) {
-        throw new UnauthorizedException('Invalid email or password');
-      }
-
-      const passwordMatches = await bcrypt.compare(dto.password, user.passwordHash);
-      if (!passwordMatches) {
-        throw new UnauthorizedException('Invalid email or password');
-      }
-
-      await this.auditLogs.record({
-        action: 'auth.login',
-        entity: 'user',
-        entityId: user.id,
-        actorId: user.id,
-        metadata: { email: user.email, role: user.role?.name ?? null },
-      });
-
-      return this.issueToken(user);
-    } catch (error) {
-      throw error;
+    const user = await this.usersService.findByEmail(dto.email);
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Invalid email or password');
     }
+
+    const passwordMatches = await bcrypt.compare(dto.password, user.passwordHash);
+    if (!passwordMatches) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    await this.auditLogs.record({
+      action: 'auth.login',
+      entity: 'user',
+      entityId: user.id,
+      actorId: user.id,
+      metadata: { email: user.email, role: user.role?.name ?? null },
+    });
+
+    return this.issueToken(user);
   }
 
   private issueToken(user: User): LoginResponseDto {

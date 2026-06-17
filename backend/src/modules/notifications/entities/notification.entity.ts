@@ -11,11 +11,22 @@ import {
 import { User } from '../../users/entities/user.entity';
 
 export enum NotificationType {
-  Info = 'info',
-  BookingCreated = 'booking_created',
-  BookingCancelled = 'booking_cancelled',
-  BookingReminder = 'booking_reminder',
-  System = 'system',
+  // Generic
+  Info              = 'info',
+  System            = 'system',
+
+  // §12 — Booking lifecycle triggers
+  BookingCreated    = 'booking_created',      // Booker: confirmation received/approved
+  BookingApprovalRequired = 'booking_approval_required', // Admin/FM: approval request
+  BookingApproved   = 'booking_approved',     // Booker: booking confirmed
+  BookingRejected   = 'booking_rejected',     // Booker: rejection notice with reason
+  BookingCancelled  = 'booking_cancelled',    // Booker + admins: cancellation notice
+  BookingUpdated    = 'booking_updated',      // Booker + admins: change summary
+  BookingReminder   = 'booking_reminder',     // Booker: reminder before start
+
+  // §12 — Operational triggers
+  FacilitiesRequest = 'facilities_request',   // FM: setup or catering required
+  RoomBlocked       = 'room_blocked',         // Admins + FM: room unavailable notice
 }
 
 @Entity({ name: 'notifications' })

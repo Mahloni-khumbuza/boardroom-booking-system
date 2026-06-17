@@ -10,6 +10,7 @@ import { Boardroom } from '../../boardrooms/models/boardroom.model';
 import { BoardroomsService } from '../../boardrooms/services/boardrooms.service';
 import { BoardroomBlock } from '../models/boardroom-block.model';
 import { BoardroomBlocksService } from '../services/boardroom-blocks.service';
+import { extractErrorMessage } from '../../../shared/utils/error.utils';
 
 @Component({
   selector: 'app-boardroom-blocks-page',
@@ -63,7 +64,7 @@ export class BoardroomBlocksPage {
         this.loading.set(false);
       },
       error: (err) => {
-        this.error.set(this.errorMessage(err));
+        this.error.set(extractErrorMessage(err));
         this.loading.set(false);
       }
     });
@@ -109,7 +110,7 @@ export class BoardroomBlocksPage {
         this.toast.success('Room block created.');
       },
       error: (err) => {
-        this.error.set(this.errorMessage(err));
+        this.error.set(extractErrorMessage(err));
         this.saving.set(false);
       }
     });
@@ -153,7 +154,7 @@ export class BoardroomBlocksPage {
         this.toast.success('Room block updated.');
       },
       error: (err) => {
-        this.error.set(this.errorMessage(err));
+        this.error.set(extractErrorMessage(err));
         this.saving.set(false);
       }
     });
@@ -171,7 +172,7 @@ export class BoardroomBlocksPage {
         this.blocks.update((list) => list.map((b) => (b.id === updated.id ? updated : b)));
         this.toast.success(updated.isActive ? 'Block activated.' : 'Block deactivated.');
       },
-      error: (err) => this.error.set(this.errorMessage(err))
+      error: (err) => this.error.set(extractErrorMessage(err))
     });
   }
 
@@ -191,17 +192,11 @@ export class BoardroomBlocksPage {
           if (this.editingBlock()?.id === block.id) this.cancelEdit();
           this.toast.success('Room block removed.');
         },
-        error: (err) => this.error.set(this.errorMessage(err))
+        error: (err) => this.error.set(extractErrorMessage(err))
       });
     });
   }
 
-  private errorMessage(err: unknown): string {
-    const e = err as { error?: { message?: string | string[] }; message?: string };
-    const msg = e?.error?.message;
-    if (Array.isArray(msg)) return msg.join(', ');
-    return msg || e?.message || 'Something went wrong.';
-  }
 }
 
 function roundedNow(intervalMinutes: number): Date {

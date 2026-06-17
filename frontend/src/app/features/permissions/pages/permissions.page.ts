@@ -1,16 +1,18 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
+import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { DialogService } from '../../../core/services/dialog.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { Permission } from '../models/permission.model';
 import { PermissionsService } from '../services/permissions.service';
+import { extractErrorMessage } from '../../../shared/utils/error.utils';
 
 @Component({
   selector: 'app-permissions-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, SpinnerComponent],
   templateUrl: './permissions.page.html',
   styleUrl: './permissions.page.css'
 })
@@ -24,6 +26,17 @@ export class PermissionsPage {
   readonly sortedPermissions = computed(() =>
     [...this.permissions()].sort((a, b) => a.name.localeCompare(b.name))
   );
+
+  readonly groupedPermissions = computed(() => {
+    const sorted = this.sortedPermissions();
+    const map = new Map<string, Permission[]>();
+    for (const p of sorted) {
+      const resource = p.name.split(':')[0] ?? p.name;
+      if (!map.has(resource)) map.set(resource, []);
+      map.get(resource)!.push(p);
+    }
+    return Array.from(map.entries()).map(([resource, items]) => ({ resource, items }));
+  });
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly saving = signal(false);
@@ -46,7 +59,7 @@ export class PermissionsPage {
     this.error.set(null);
     this.service.list().subscribe({
       next: (list) => { this.permissions.set(list); this.loading.set(false); },
-      error: (err) => { this.error.set(this.errorMessage(err)); this.loading.set(false); }
+      error: (err) => { this.error.set(extractErrorMessage(err)); this.loading.set(false); }
     });
   }
 
@@ -86,7 +99,7 @@ export class PermissionsPage {
 
     req$.subscribe({
       next: () => { this.saving.set(false); this.toast.success(id ? 'Permission updated.' : 'Permission created.'); this.closeForm(); this.refresh(); },
-      error: (err) => { this.error.set(this.errorMessage(err)); this.saving.set(false); }
+      error: (err) => { this.error.set(extractErrorMessage(err)); this.saving.set(false); }
     });
   }
 
@@ -97,7 +110,7 @@ export class PermissionsPage {
         this.busyId.set(p.id);
         this.service.remove(p.id).subscribe({
           next: () => { this.permissions.update((list) => list.filter((x) => x.id !== p.id)); this.busyId.set(null); this.toast.success('Permission deleted.'); },
-          error: (err) => { this.error.set(this.errorMessage(err)); this.busyId.set(null); }
+          error: (err) => { this.error.set(extractErrorMessage(err)); this.busyId.set(null); }
         });
       });
   }
@@ -105,10 +118,4 @@ export class PermissionsPage {
   resourceOf(name: string): string { return name.split(':')[0] ?? name; }
   actionOf(name: string): string { return name.split(':')[1] ?? ''; }
 
-  private errorMessage(err: unknown): string {
-    const e = err as { error?: { message?: string | string[] }; message?: string };
-    const msg = e?.error?.message;
-    if (Array.isArray(msg)) return msg.join(', ');
-    return msg || e?.message || 'Something went wrong.';
-  }
 }

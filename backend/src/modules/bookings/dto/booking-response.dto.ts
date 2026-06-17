@@ -85,6 +85,9 @@ export class BookingResponseDto {
   @ApiProperty({ nullable: true })
   approvedAt: Date | null;
 
+  @ApiProperty({ nullable: true })
+  cancelledAt: Date | null;
+
   @ApiProperty({ type: BookingActorDto, nullable: true })
   rejectedByUser: BookingActorDto | null;
 
@@ -115,6 +118,7 @@ export class BookingResponseDto {
     dto.requiresSetup = booking.requiresSetup;
     dto.setupNotes = booking.setupNotes;
     dto.cancellationReason = booking.cancellationReason;
+    dto.cancelledAt = booking.cancelledAt ?? null;
     dto.rejectionReason = booking.rejectionReason;
     dto.boardroom = booking.boardroom
       ? {

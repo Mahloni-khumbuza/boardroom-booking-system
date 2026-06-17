@@ -1,8 +1,10 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, signal } from '@angular/core';
 
+import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
 import { Boardroom } from '../../boardrooms/models/boardroom.model';
 import { BoardroomsService } from '../../boardrooms/services/boardrooms.service';
+import { extractErrorMessage } from '../../../shared/utils/error.utils';
 
 export type EquipmentStatus = 'ok' | 'needs_attention' | 'out_of_service';
 
@@ -15,7 +17,7 @@ const STATUS_META: Record<EquipmentStatus, { label: string; css: string }> = {
 @Component({
   selector: 'app-room-equipment-page',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, SpinnerComponent],
   templateUrl: './room-equipment.page.html',
   styleUrl: './room-equipment.page.css'
 })
@@ -39,7 +41,7 @@ export class RoomEquipmentPage {
         this.boardrooms.set(rooms as (Boardroom & { equipmentStatus: EquipmentStatus })[]);
         this.loading.set(false);
       },
-      error: (err) => { this.error.set(this.errorMessage(err)); this.loading.set(false); }
+      error: (err) => { this.error.set(extractErrorMessage(err)); this.loading.set(false); }
     });
   }
 
@@ -57,17 +59,11 @@ export class RoomEquipmentPage {
         );
         this.busyId.set(null);
       },
-      error: (err) => { this.error.set(this.errorMessage(err)); this.busyId.set(null); }
+      error: (err) => { this.error.set(extractErrorMessage(err)); this.busyId.set(null); }
     });
   }
 
   statusLabel(s: EquipmentStatus): string { return STATUS_META[s]?.label ?? s; }
   statusCss(s: EquipmentStatus): string { return STATUS_META[s]?.css ?? ''; }
 
-  private errorMessage(err: unknown): string {
-    const e = err as { error?: { message?: string | string[] }; message?: string };
-    const msg = e?.error?.message;
-    if (Array.isArray(msg)) return msg.join(', ');
-    return msg || e?.message || 'Something went wrong.';
-  }
 }

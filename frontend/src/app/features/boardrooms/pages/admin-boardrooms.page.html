@@ -1,12 +1,15 @@
 <section class="page">
 
-  <!-- ── Header ─────────────────────────────────────────────────────────── -->
+  <!-- ── Header ──────────────────────────────────────────────────────── -->
   <header class="page-head">
     <div>
       <h1>Boardrooms</h1>
-      <p class="lede">Create, update and manage the rooms employees can browse and book.</p>
+      <p class="lede">
+        @if (canManage()) { Manage and configure the rooms available to your organisation. }
+        @else { Find and book the perfect room for your meeting. }
+      </p>
     </div>
-    @if (!showForm()) {
+    @if (canManage() && !showForm()) {
       <button type="button" class="btn-new" (click)="openCreate()">+ New Boardroom</button>
     }
   </header>
@@ -15,7 +18,7 @@
     <div class="alert-error">{{ err }}</div>
   }
 
-  <!-- ── Inline form ─────────────────────────────────────────────────────── -->
+  <!-- ── Create / Edit form ────────────────────────────────────────────── -->
   @if (showForm()) {
     <div class="form-card">
       <div class="form-card-header">
@@ -40,7 +43,7 @@
             <span class="f-label">Capacity *</span>
             <input type="number" formControlName="capacity" min="1" max="1000" placeholder="12" />
             @if (form.controls.capacity.touched && form.controls.capacity.invalid) {
-              <span class="f-error">Enter a number between 1 and 1000.</span>
+              <span class="f-error">Enter 1–1000.</span>
             }
           </label>
         </div>
@@ -48,7 +51,7 @@
         <div class="f-row">
           <label class="f-field">
             <span class="f-label">Location <span class="f-opt">(optional)</span></span>
-            <input type="text" formControlName="location" maxlength="255" placeholder="e.g. Floor 3 / East Wing" />
+            <input type="text" formControlName="location" maxlength="255" placeholder="e.g. Floor 3, East Wing" />
           </label>
           <label class="f-field">
             <span class="f-label">Description <span class="f-opt">(optional)</span></span>
@@ -56,9 +59,14 @@
           </label>
         </div>
 
-        <!-- Toggles — only shown when editing -->
-        @if (isEdit()) {
-          <div class="f-toggles">
+        <label class="f-field">
+          <span class="f-label">Photo URL <span class="f-opt">(optional)</span></span>
+          <input type="url" formControlName="imageUrl" placeholder="https://…" />
+          <span class="f-hint">Paste a direct image link for the room cover photo.</span>
+        </label>
+
+        <div class="f-toggles">
+          @if (isEdit()) {
             <label class="f-toggle">
               <input type="checkbox" formControlName="isActive" />
               <div class="f-toggle-text">
@@ -66,32 +74,28 @@
                 <span>Visible and bookable by employees</span>
               </div>
             </label>
-            <label class="f-toggle">
-              <input type="checkbox" formControlName="requiresApproval" />
-              <div class="f-toggle-text">
-                <strong>Requires approval</strong>
-                <span>Bookings start as Pending and need admin sign-off before Confirmed</span>
-              </div>
-            </label>
-          </div>
-        }
+          }
+          <label class="f-toggle">
+            <input type="checkbox" formControlName="requiresApproval" />
+            <div class="f-toggle-text">
+              <strong>Requires approval</strong>
+              <span>Bookings start as Pending and need admin sign-off before being Confirmed</span>
+            </div>
+          </label>
+        </div>
 
-        <!-- Amenities -->
         <div class="f-field">
           <span class="f-label">Amenities <span class="f-opt">(optional)</span></span>
-          @if (amenities().length === 0) {
+          @if (allAmenities().length === 0) {
             <div class="no-amenities">
               No amenities defined yet.
-              <a [routerLink]="amenitiesPath">Create some on the Amenities page</a> first.
+              <a [routerLink]="amenitiesPath()">Create some on the Amenities page</a> first.
             </div>
           } @else {
             <div class="chip-list">
-              @for (a of amenities(); track a.id) {
-                <button type="button" class="chip"
-                  [class.selected]="isAmenitySelected(a.id)"
-                  (click)="toggleAmenity(a.id)">
-                  {{ a.name }}
-                </button>
+              @for (a of allAmenities(); track a.id) {
+                <button type="button" class="chip" [class.selected]="isAmenitySelected(a.id)"
+                  (click)="toggleAmenity(a.id)">{{ a.name }}</button>
               }
             </div>
           }
@@ -103,66 +107,180 @@
             {{ saving() ? 'Saving…' : (isEdit() ? 'Save changes' : 'Create boardroom') }}
           </button>
         </div>
-
       </form>
     </div>
   }
 
-  <!-- ── Boardroom list ──────────────────────────────────────────────────── -->
+  <!-- ── Search / filter bar ───────────────────────────────────────────── -->
   @if (!showForm()) {
+    <div class="filters-bar">
+      <div class="filter-field search-wrap">
+        <span>Search</span>
+        <div class="search-input-wrap">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input class="search-input" type="search" placeholder="Search rooms or amenities…"
+            [ngModel]="search()" (ngModelChange)="setSearch($event)" />
+        </div>
+      </div>
+
+      <label class="filter-field">
+        <span>Location</span>
+        <input type="text" placeholder="Any"
+          [ngModel]="locationFilter()" (ngModelChange)="setLocation($event)" />
+      </label>
+
+      <label class="filter-field filter-small">
+        <span>Min seats</span>
+        <input type="number" min="1" placeholder="Any"
+          [ngModel]="minCapacity()" (ngModelChange)="setMinCap($event)" />
+      </label>
+
+      <label class="filter-field">
+        <span>
+          Available on
+          @if (availabilityLoading()) {
+            <span class="avail-checking">checking…</span>
+          }
+        </span>
+        <input type="date"
+          [ngModel]="availabilityDate()"
+          [min]="todayStr"
+          (ngModelChange)="setAvailabilityDate($event)" />
+      </label>
+
+      @if (hasFilters()) {
+        <button type="button" class="btn-clear-filters" (click)="clearFilters()">Clear</button>
+      }
+    </div>
+
+    <!-- Results count -->
+    @if (!loading()) {
+      <div class="results-meta">
+        {{ filtered().length }} room{{ filtered().length !== 1 ? 's' : '' }}
+        @if (hasFilters()) { matching your filters }
+      </div>
+    }
+
+    <!-- ── Room grid ──────────────────────────────────────────────────── -->
     @if (loading()) {
       <app-spinner label="Loading boardrooms…" />
-    } @else if (boardrooms().length === 0) {
+    } @else if (filtered().length === 0) {
       <div class="empty-state">
-        <p class="empty-title">No boardrooms yet</p>
-        <p class="empty-sub">Click <strong>+ New Boardroom</strong> to add your first room.</p>
+        <div class="empty-icon">🏢</div>
+        @if (hasFilters()) {
+          <h3>No rooms match your filters</h3>
+          <p>Try adjusting your search or <button type="button" class="link-btn" (click)="clearFilters()">clear all filters</button>.</p>
+        } @else if (canManage()) {
+          <h3>No boardrooms yet</h3>
+          <p>Click <strong>+ New Boardroom</strong> to add your first room.</p>
+        } @else {
+          <h3>No boardrooms available</h3>
+          <p>No rooms have been set up yet. Check back later.</p>
+        }
       </div>
     } @else {
-      <div class="room-list">
-        @for (r of boardrooms(); track r.id) {
-          <div class="room-card">
+      <div class="rooms-grid">
+        @for (r of filtered(); track r.id) {
+          <article class="room-card" [class.inactive-room]="!r.isActive">
 
-            <div class="room-card-main">
-              <div class="room-avatar">{{ r.name[0] }}</div>
-              <div class="room-info">
-                <div class="room-name">{{ r.name }}</div>
-                @if (r.location) { <div class="room-meta">{{ r.location }}</div> }
-                @if (r.description) { <div class="room-desc">{{ r.description }}</div> }
-              </div>
-              <div class="room-stats">
-                <div class="room-stat">
-                  <span class="stat-num">{{ r.capacity }}</span>
-                  <span class="stat-lbl">seats</span>
+            <!-- Cover -->
+            <a class="room-card-cover" [routerLink]="[portalBase() + '/boardrooms', r.id]">
+              @if (r.imageUrl) {
+                <img class="cover-img" [src]="r.imageUrl" [alt]="r.name" loading="lazy" />
+              } @else {
+                <div class="cover-gradient" [style.background]="roomGradient(r.id)">
+                  <span class="cover-initials">{{ r.name.charAt(0) }}</span>
                 </div>
-                <div class="room-stat">
-                  <span class="stat-num">{{ r.amenities.length }}</span>
-                  <span class="stat-lbl">amenities</span>
-                </div>
+              }
+
+              <span class="cover-capacity">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+                {{ r.capacity }}
+              </span>
+
+              @if (r.requiresApproval) {
+                <span class="cover-badge badge-approval">Approval</span>
+              } @else {
+                <span class="cover-badge badge-instant">Instant</span>
+              }
+
+              @if (availabilityDate() && availableRoomIds()?.has(r.id)) {
+                <span class="cover-badge badge-available">✓ Free</span>
+              }
+
+              @if (!r.isActive) {
+                <span class="cover-inactive">Inactive</span>
+              }
+            </a>
+
+            <!-- Body -->
+            <div class="room-card-body">
+              <div class="room-name-row">
+                <h3 class="room-name">{{ r.name }}</h3>
+                @if (r.code) { <span class="room-code">{{ r.code }}</span> }
               </div>
-              <div class="room-status-wrap">
-                <span class="status-dot" [class.active]="r.isActive" [class.inactive]="!r.isActive">
-                  {{ r.isActive ? 'Active' : 'Inactive' }}
-                </span>
-                @if (r.requiresApproval) {
-                  <span class="approval-tag">Approval required</span>
+
+              @if (r.location) {
+                <div class="room-location">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+                  </svg>
+                  {{ r.location }}
+                </div>
+              }
+
+              @if (r.description) {
+                <p class="room-desc">{{ r.description }}</p>
+              }
+
+              @if (r.amenities.length > 0) {
+                <div class="room-amenities">
+                  @for (a of r.amenities.slice(0, 3); track a.id) {
+                    <span class="amenity-tag">{{ a.name }}</span>
+                  }
+                  @if (r.amenities.length > 3) {
+                    <span class="amenity-tag amenity-more">+{{ r.amenities.length - 3 }}</span>
+                  }
+                </div>
+              }
+            </div>
+
+            <!-- Footer -->
+            <div class="room-card-footer">
+              <div class="hours-info">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="11" height="11">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+                {{ r.openingTime }} – {{ r.closingTime }}
+              </div>
+
+              <div class="footer-actions">
+                <a class="btn-view" [routerLink]="[portalBase() + '/boardrooms', r.id]">View</a>
+                @if (canManage()) {
+                  <button class="icon-btn" title="Edit" (click)="openEdit(r)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>
+                  <button class="icon-btn icon-btn-danger" title="Delete" (click)="remove(r)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                      <path d="M10 11v6"/><path d="M14 11v6"/>
+                      <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                    </svg>
+                  </button>
                 }
-              </div>
-              <div class="room-actions">
-                <a class="icon-btn" title="View detail" [routerLink]="[portalBase + '/boardrooms', r.id]">👁</a>
-                <button class="icon-btn" title="Edit" (click)="openEdit(r)">✎</button>
-                <button class="icon-btn icon-btn-danger" title="Delete" (click)="remove(r)">✕</button>
               </div>
             </div>
 
-            @if (r.amenities.length > 0) {
-              <div class="room-amenities">
-                @for (a of r.amenities; track a.id) {
-                  <span class="amenity-tag">{{ a.name }}</span>
-                }
-              </div>
-            }
-
-          </div>
+          </article>
         }
       </div>
     }

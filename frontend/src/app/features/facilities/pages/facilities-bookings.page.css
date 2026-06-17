@@ -39,13 +39,25 @@ form { padding: 20px 24px; }
 .f-label { font-size: 0.82rem; font-weight: 600; color: #374151; }
 .f-optional { font-weight: 400; color: #94a3b8; margin-left: 3px; }
 .f-hint-inline { font-weight: 400; color: #94a3b8; margin-left: 4px; font-size: 0.78rem; }
-.f-field input, .f-field select, .f-field textarea {
-  padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px;
-  font-size: 0.88rem; font-family: inherit; color: #0f172a; background: #fff;
-  outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+.f-field input, .f-field textarea {
+  padding: 10px 13px; border: 1.5px solid #dde3ec; border-radius: 9px;
+  font-size: 0.88rem; font-family: inherit; color: #0f172a; background: #fafbff;
+  outline: none; transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
 }
-.f-field input:focus, .f-field select:focus, .f-field textarea:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.12); }
-.f-field input::placeholder, .f-field textarea::placeholder { color: #cbd5e1; }
+
+.f-field select {
+  padding: 10px 36px 10px 13px; border: 1.5px solid #dde3ec; border-radius: 9px;
+  font-size: 0.88rem; font-family: inherit; color: #0f172a; background-color: #fafbff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center; background-size: 16px;
+  appearance: none; -webkit-appearance: none; outline: none; cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.f-field input:hover, .f-field select:hover, .f-field textarea:hover { border-color: #c5cdd9; }
+.f-field input:focus, .f-field select:focus, .f-field textarea:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.12); background-color: #fff; }
+.f-field select:focus { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234f46e5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); }
+.f-field input::placeholder, .f-field textarea::placeholder { color: #aab4c4; }
 .f-error { color: #dc2626; font-size: 0.76rem; }
 
 /* ── Chips ───────────────────────────────────────────── */
@@ -75,8 +87,43 @@ form { padding: 20px 24px; }
 /* ── Summary + Filters ───────────────────────────────── */
 .summary-bar { display: flex; gap: 20px; background: #fff; padding: 12px 16px; border-radius: 10px; box-shadow: 0 2px 8px rgba(15,23,42,0.04); font-size: 0.88rem; color: #475569; }
 .summary-item strong { color: #0f172a; }
-.filters { display: flex; gap: 10px; }
-.filters select { padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.875rem; background: #fff; color: #334155; outline: none; }
+.filters {
+  display: flex;
+  gap: 10px;
+  padding: 14px 16px;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e8edf4;
+  box-shadow: 0 1px 4px rgba(15,23,42,0.05);
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.filters select {
+  padding: 9px 36px 9px 13px;
+  border: 1.5px solid #dde3ec;
+  border-radius: 9px;
+  font-size: 0.875rem;
+  font-family: inherit;
+  background-color: #fafbff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px;
+  appearance: none;
+  -webkit-appearance: none;
+  color: #334155;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.filters select:hover { border-color: #c5cdd9; }
+.filters select:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79,70,229,0.12);
+  background-color: #fff;
+}
 
 /* ── Tabs ────────────────────────────────────────────── */
 .bookings-tabs { background: #fff; border-radius: 14px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(15,23,42,0.06); }

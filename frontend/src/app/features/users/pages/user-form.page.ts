@@ -10,6 +10,7 @@ import { AuthService } from '../../auth/services/auth.service';
 import { AdminUser, RoleSummary } from '../models/user.model';
 import { RolesService } from '../services/roles.service';
 import { UsersService } from '../services/users.service';
+import { extractErrorMessage } from '../../../shared/utils/error.utils';
 
 @Component({
   selector: 'app-user-form-page',
@@ -90,7 +91,7 @@ export class UserFormPage implements OnInit {
           this.loading.set(false);
         },
         error: (err) => {
-          this.error.set(this.errorMessage(err));
+          this.error.set(extractErrorMessage(err));
           this.loading.set(false);
         }
       });
@@ -106,7 +107,7 @@ export class UserFormPage implements OnInit {
           this.loading.set(false);
         },
         error: (err) => {
-          this.error.set(this.errorMessage(err));
+          this.error.set(extractErrorMessage(err));
           this.loading.set(false);
         }
       });
@@ -144,7 +145,7 @@ export class UserFormPage implements OnInit {
           void this.router.navigateByUrl(this.backPath());
         },
         error: (err) => {
-          this.error.set(this.errorMessage(err));
+          this.error.set(extractErrorMessage(err));
           this.saving.set(false);
         }
       });
@@ -167,7 +168,7 @@ export class UserFormPage implements OnInit {
           void this.router.navigateByUrl(this.backPath());
         },
         error: (err) => {
-          this.error.set(this.errorMessage(err));
+          this.error.set(extractErrorMessage(err));
           this.saving.set(false);
         }
       });
@@ -178,10 +179,4 @@ export class UserFormPage implements OnInit {
     void this.router.navigateByUrl(this.backPath());
   }
 
-  private errorMessage(err: unknown): string {
-    const e = err as { error?: { message?: string | string[] }; message?: string };
-    const msg = e?.error?.message;
-    if (Array.isArray(msg)) return msg.join(', ');
-    return msg || e?.message || 'Something went wrong.';
-  }
 }

@@ -11,7 +11,7 @@ export const superAdminGuard: CanActivateFn = () => {
     return router.createUrlTree(['/login']);
   }
   if (!auth.isSuperAdmin()) {
-    return router.createUrlTree([auth.isAdmin() ? '/admin/dashboard' : '/employee/dashboard']);
+    return router.createUrlTree([auth.homePath()]);
   }
   return true;
 };

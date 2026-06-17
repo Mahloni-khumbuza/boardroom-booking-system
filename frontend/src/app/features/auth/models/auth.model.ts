@@ -18,13 +18,11 @@ export interface AuthUser {
   role?: string;
 }
 
+// Backend returns LoginResponseData directly (no envelope wrapper)
 export interface LoginResponse {
   accessToken: string;
-  refreshToken?: string;
+  expiresIn?: string;
   user?: AuthUser;
 }
 
-export interface RegisterResponse {
-  id: string;
-  email: string;
-}
+export type RegisterResponse = LoginResponse;

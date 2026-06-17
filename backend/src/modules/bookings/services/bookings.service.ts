@@ -4,37 +4,38 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  OnApplicationBootstrap,
-  OnApplicationShutdown,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { AuditLog } from '../../audit-logs/entities/audit-log.entity';
+import { AuditLogsService } from '../../audit-logs/services/audit-logs.service';
 import { BoardroomBlock } from '../../boardroom-blocks/entities/boardroom-block.entity';
 import { Boardroom } from '../../boardrooms/entities/boardroom.entity';
-import { Notification } from '../../notifications/entities/notification.entity';
-import { SystemSetting } from '../../system-settings/entities/system-setting.entity';
+import { NotificationsService } from '../../notifications/services/notifications.service';
+import { NotificationType } from '../../notifications/entities/notification.entity';
 import { User } from '../../users/entities/user.entity';
 import { Booking, BookingStatus, MeetingType } from '../entities/booking.entity';
 import { BookingResponseDto, CalendarEventResponseDto } from '../dto/booking-response.dto';
 import { CreateBookingDto } from '../dto/create-booking.dto';
 import { UpdateBookingDto } from '../dto/update-booking.dto';
 import { MailService } from '../../mail/mail.service';
+import { SettingsCacheService } from '../../../shared/services/settings-cache.service';
 import {
   bookingCreatedHtml,
   bookingConfirmedHtml,
   bookingUpdatedHtml,
+  bookingUpdatedAdminHtml,
   bookingCancelledHtml,
+  bookingCancelledAdminHtml,
   bookingRejectedHtml,
+  bookingReminderHtml,
+  approvalRequestHtml,
+  facilitiesRequestHtml,
   BookingEmailContext,
 } from '../../mail/mail-templates';
 
 @Injectable()
-export class BookingsService implements OnApplicationBootstrap, OnApplicationShutdown {
+export class BookingsService {
   private readonly logger = new Logger(BookingsService.name);
-  private reminderTimer?: ReturnType<typeof setInterval>;
-  private reminderStartupTimer?: ReturnType<typeof setTimeout>;
-  private reminderWorkerRunning = false;
 
   constructor(
     @InjectRepository(Booking)
@@ -43,117 +44,90 @@ export class BookingsService implements OnApplicationBootstrap, OnApplicationShu
     private readonly rooms: Repository<Boardroom>,
     @InjectRepository(BoardroomBlock)
     private readonly blocks: Repository<BoardroomBlock>,
-    @InjectRepository(Notification)
-    private readonly notifications: Repository<Notification>,
-    @InjectRepository(AuditLog)
-    private readonly auditLogs: Repository<AuditLog>,
     @InjectRepository(User)
     private readonly users: Repository<User>,
-    @InjectRepository(SystemSetting)
-    private readonly settings: Repository<SystemSetting>,
+    private readonly notifications: NotificationsService,
+    private readonly auditLogs: AuditLogsService,
+    private readonly settings: SettingsCacheService,
     private readonly mail: MailService,
   ) {}
 
-  onApplicationBootstrap(): void {
-    if (!this.booleanEnv('BOOKING_REMINDER_WORKER_ENABLED', true)) {
-      this.logger.log('Booking reminder worker is disabled');
-      return;
-    }
-    const intervalSeconds = Math.max(
-      30,
-      Number(process.env.BOOKING_REMINDER_POLL_INTERVAL_SECONDS) || 60,
-    );
-    this.reminderStartupTimer = setTimeout(() => { void this.runReminderWorker(); }, 5000);
-    this.reminderTimer = setInterval(() => { void this.runReminderWorker(); }, intervalSeconds * 1000);
-    this.logger.log(`Booking reminder worker started; checking every ${intervalSeconds} seconds`);
-  }
-
-  onApplicationShutdown(): void {
-    if (this.reminderStartupTimer) clearTimeout(this.reminderStartupTimer);
-    if (this.reminderTimer) clearInterval(this.reminderTimer);
-  }
-
-  private async runReminderWorker(): Promise<void> {
-    if (this.reminderWorkerRunning) return;
-    this.reminderWorkerRunning = true;
-    try {
-      const result = await this.sendDueReminders();
-      if (result.sent || result.failed) {
-        this.logger.log(
-          `Reminder worker: sent=${result.sent}, failed=${result.failed}, skipped=${result.skipped}`,
-        );
-      }
-    } catch (error) {
-      this.logger.error(error instanceof Error ? error.message : 'Booking reminder worker failed');
-    } finally {
-      this.reminderWorkerRunning = false;
-    }
-  }
-
   async create(dto: CreateBookingDto, user: User): Promise<BookingResponseDto> {
-    try {
-      const room = await this.rooms.findOne({ where: { id: dto.boardroomId } });
-      if (!room) throw new NotFoundException('Boardroom not found');
+    const room = await this.rooms.findOne({ where: { id: dto.boardroomId } });
+    if (!room) throw new NotFoundException('Boardroom not found');
 
-      const start = new Date(dto.startTime);
-      const end = new Date(dto.endTime);
+    const start = new Date(dto.startTime);
+    const end = new Date(dto.endTime);
 
-      await this.validateBookingBasics(dto, room, start, end);
-      await this.validateOperatingRules(room, start, end);
+    await this.validateBookingBasics(dto, room, start, end);
+    await this.validateOperatingRules(room, start, end);
 
-      const conflictWindow = this.applyBufferWindow(room, start, end);
-      await this.validateNoConflicts(room.id, conflictWindow.start, conflictWindow.end);
+    const conflictWindow = this.applyBufferWindow(room, start, end);
+    await this.validateNoConflicts(room.id, conflictWindow.start, conflictWindow.end);
 
-      const booking = this.bookings.create({
-        title: dto.title,
-        description: dto.description ?? null,
-        boardroom: room,
-        boardroomId: room.id,
-        bookedByUser: user,
-        bookedByUserId: user.id,
-        startDateTime: start,
-        endDateTime: end,
-        attendeeCount: dto.attendeeCount,
-        meetingType: dto.meetingType ?? MeetingType.Internal,
-        requiresCatering: dto.requiresCatering ?? false,
-        cateringNotes: dto.cateringNotes ?? null,
-        requiresSetup: dto.requiresSetup ?? false,
-        setupNotes: dto.setupNotes ?? null,
-        status: room.requiresApproval ? BookingStatus.PENDING_APPROVAL : BookingStatus.APPROVED,
-      });
+    const booking = this.bookings.create({
+      title: dto.title,
+      description: dto.description ?? null,
+      boardroom: room,
+      boardroomId: room.id,
+      bookedByUser: user,
+      bookedByUserId: user.id,
+      startDateTime: start,
+      endDateTime: end,
+      attendeeCount: dto.attendeeCount,
+      meetingType: dto.meetingType ?? MeetingType.Internal,
+      requiresCatering: dto.requiresCatering ?? false,
+      cateringNotes: dto.cateringNotes ?? null,
+      requiresSetup: dto.requiresSetup ?? false,
+      setupNotes: dto.setupNotes ?? null,
+      status: room.requiresApproval ? BookingStatus.PENDING_APPROVAL : BookingStatus.APPROVED,
+    });
 
-      const saved = await this.bookings.save(booking);
+    const saved = await this.bookings.save(booking);
 
-      await this.notifyUser(
-        user,
-        'Booking created',
-        room.requiresApproval
-          ? `Your booking for ${room.name} is pending approval.`
-          : `Your booking for ${room.name} has been approved.`,
-        'BOOKING_CREATED',
-        { bookingId: saved.id },
+    await this.notifications.notify({
+      recipientId: user.id,
+      title: 'Booking created',
+      message: room.requiresApproval
+        ? `Your booking for ${room.name} is pending approval.`
+        : `Your booking for ${room.name} has been approved.`,
+      type: NotificationType.BookingCreated,
+    });
+    this.sendBookingEmail(
+      user,
+      room.requiresApproval ? `Booking submitted: ${saved.title}` : `Booking confirmed: ${saved.title}`,
+      room.requiresApproval ? bookingCreatedHtml(this.buildEmailCtx(saved)) : bookingConfirmedHtml(this.buildEmailCtx(saved)),
+    );
+
+    if (room.requiresApproval) {
+      // §12: Booking requires approval → Admin + FM: approval request with room and time details
+      await this.notifyAndEmailOperationalUsers(
+        'Booking requires approval',
+        `${user.firstName} ${user.lastName} requested ${room.name} on ${saved.startDateTime.toLocaleDateString('en-ZA')}.`,
+        NotificationType.BookingApprovalRequired,
+        approvalRequestHtml({
+          bookerName: `${user.firstName} ${user.lastName}`,
+          boardroomName: room.name,
+          bookingTitle: saved.title,
+          startTime: saved.startDateTime,
+          endTime: saved.endDateTime,
+          attendeeCount: saved.attendeeCount,
+          meetingType: saved.meetingType,
+        }),
+        `Approval required: ${saved.title}`,
       );
-      await this.sendBookingEmail(
-        user,
-        room.requiresApproval ? `Booking submitted: ${saved.title}` : `Booking confirmed: ${saved.title}`,
-        room.requiresApproval ? bookingCreatedHtml(this.buildEmailCtx(saved)) : bookingConfirmedHtml(this.buildEmailCtx(saved)),
-      );
-
-      if (room.requiresApproval) {
-        await this.notifyOperationalUsers(
-          'Booking requires approval',
-          `${user.firstName} ${user.lastName} requested ${room.name}.`,
-          'BOOKING_APPROVAL_REQUIRED',
-          { bookingId: saved.id, boardroomId: room.id },
-        );
-      }
-
-      await this.notifyFacilitiesRequests(saved);
-      await this.audit(user, 'BOOKING_CREATED', 'Booking', saved.id, null, this.safeBooking(saved));
-      return BookingResponseDto.fromEntity(saved);
-    } catch (error) {
-      throw error;
     }
+
+    // §12: Setup or catering required → Facilities Manager only: operational task details
+    await this.notifyFacilitiesRequests(saved);
+    await this.auditLogs.record({
+      action: 'BOOKING_CREATED',
+      entity: 'Booking',
+      entityId: saved.id,
+      actorId: user.id,
+      after: this.safeBooking(saved),
+    });
+    return BookingResponseDto.fromEntity(saved);
   }
 
   private async validateBookingBasics(
@@ -176,11 +150,11 @@ export class BookingsService implements OnApplicationBootstrap, OnApplicationShu
     const minutes = (end.getTime() - start.getTime()) / 60000;
     const minimumMinutes = Math.max(
       room.minimumBookingMinutes,
-      await this.getNumberSetting('DEFAULT_MINIMUM_BOOKING_MINUTES', room.minimumBookingMinutes),
+      await this.settings.getNumber('DEFAULT_MINIMUM_BOOKING_MINUTES', room.minimumBookingMinutes),
     );
     const maximumMinutes = Math.min(
       room.maximumBookingMinutes,
-      await this.getNumberSetting('DEFAULT_MAXIMUM_BOOKING_MINUTES', room.maximumBookingMinutes),
+      await this.settings.getNumber('DEFAULT_MAXIMUM_BOOKING_MINUTES', room.maximumBookingMinutes),
     );
     if (minutes < minimumMinutes) {
       throw new BadRequestException(`Minimum meeting duration is ${minimumMinutes} minutes.`);
@@ -191,8 +165,8 @@ export class BookingsService implements OnApplicationBootstrap, OnApplicationShu
   }
 
   private async validateOperatingRules(room: Boardroom, start: Date, end: Date): Promise<void> {
-    const allowWeekends = await this.getBooleanSetting('ALLOW_WEEKEND_BOOKINGS', false);
-    const allowAfterHours = await this.getBooleanSetting('ALLOW_AFTER_HOURS_BOOKINGS', false);
+    const allowWeekends = await this.settings.getBoolean('ALLOW_WEEKEND_BOOKINGS', false);
+    const allowAfterHours = await this.settings.getBoolean('ALLOW_AFTER_HOURS_BOOKINGS', false);
 
     const isWeekend = [0, 6].includes(start.getDay()) || [0, 6].includes(end.getDay());
     if (!allowWeekends && isWeekend) throw new BadRequestException("You can't book on a weekend.");
@@ -219,60 +193,48 @@ export class BookingsService implements OnApplicationBootstrap, OnApplicationShu
     end: Date,
     excludeBookingId?: string,
   ): Promise<void> {
-    try {
-      const bookingQb = this.bookings
-        .createQueryBuilder('booking')
-        .where('booking.boardroomId = :boardroomId', { boardroomId })
-        .andWhere('booking.status IN (:...statuses)', {
-          statuses: [BookingStatus.PENDING_APPROVAL, BookingStatus.APPROVED],
-        })
-        .andWhere('booking.startDateTime < :end', { end })
-        .andWhere('booking.endDateTime > :start', { start });
+    const bookingQb = this.bookings
+      .createQueryBuilder('booking')
+      .where('booking.boardroomId = :boardroomId', { boardroomId })
+      .andWhere('booking.status IN (:...statuses)', {
+        statuses: [BookingStatus.PENDING_APPROVAL, BookingStatus.APPROVED],
+      })
+      .andWhere('booking.startDateTime < :end', { end })
+      .andWhere('booking.endDateTime > :start', { start });
 
-      if (excludeBookingId) {
-        bookingQb.andWhere('booking.id != :excludeBookingId', { excludeBookingId });
-      }
+    if (excludeBookingId) {
+      bookingQb.andWhere('booking.id != :excludeBookingId', { excludeBookingId });
+    }
 
-      const conflicts = await bookingQb.getCount();
-      if (conflicts > 0) {
-        throw new BadRequestException('Booking conflicts with an existing active booking');
-      }
+    const conflicts = await bookingQb.getCount();
+    if (conflicts > 0) {
+      throw new BadRequestException('Booking conflicts with an existing active booking');
+    }
 
-      const blockConflicts = await this.blocks
-        .createQueryBuilder('block')
-        .where('block.boardroomId = :boardroomId', { boardroomId })
-        .andWhere('block.isActive = true')
-        .andWhere('block.startTime < :end', { end })
-        .andWhere('block.endTime > :start', { start })
-        .getCount();
+    const blockConflicts = await this.blocks
+      .createQueryBuilder('block')
+      .where('block.boardroomId = :boardroomId', { boardroomId })
+      .andWhere('block.isActive = true')
+      .andWhere('block.startTime < :end', { end })
+      .andWhere('block.endTime > :start', { start })
+      .getCount();
 
-      if (blockConflicts > 0) {
-        throw new BadRequestException('Booking conflicts with an active room block');
-      }
-    } catch (error) {
-      throw error;
+    if (blockConflicts > 0) {
+      throw new BadRequestException('Booking conflicts with an active room block');
     }
   }
 
   async myBookings(user: User): Promise<BookingResponseDto[]> {
-    try {
-      const bookings = await this.bookings.find({
-        where: { bookedByUserId: user.id },
-        relations: { boardroom: true, bookedByUser: true, requestedAmenities: true },
-        order: { startDateTime: 'DESC' },
-      });
-      return BookingResponseDto.collection(bookings);
-    } catch (error) {
-      throw error;
-    }
+    const bookings = await this.bookings.find({
+      where: { bookedByUserId: user.id },
+      relations: { boardroom: true, bookedByUser: true, requestedAmenities: true },
+      order: { startDateTime: 'DESC' },
+    });
+    return BookingResponseDto.collection(bookings);
   }
 
   async findAll(query: Record<string, string> = {}): Promise<BookingResponseDto[]> {
-    try {
-      return BookingResponseDto.collection(await this.findAllEntities(query));
-    } catch (error) {
-      throw error;
-    }
+    return BookingResponseDto.collection(await this.findAllEntities(query));
   }
 
   private async findAllEntities(query: Record<string, string> = {}): Promise<Booking[]> {
@@ -300,63 +262,55 @@ export class BookingsService implements OnApplicationBootstrap, OnApplicationShu
   }
 
   async calendar(query: Record<string, string> = {}): Promise<CalendarEventResponseDto[]> {
-    try {
-      const bookings = await this.findAllEntities(query);
-      const bookingEvents: CalendarEventResponseDto[] = bookings.map((b) => ({
-        id: b.id,
-        title: b.title,
-        start: b.startDateTime,
-        end: b.endDateTime,
-        status: b.status,
-        boardroomId: b.boardroom?.id ?? null,
-        boardroom: b.boardroom?.name ?? null,
-        owner: `${b.bookedByUser?.firstName ?? ''} ${b.bookedByUser?.lastName ?? ''}`.trim(),
-      }));
+    const bookings = await this.findAllEntities(query);
+    const bookingEvents: CalendarEventResponseDto[] = bookings.map((b) => ({
+      id: b.id,
+      title: b.title,
+      start: b.startDateTime,
+      end: b.endDateTime,
+      status: b.status,
+      boardroomId: b.boardroom?.id ?? null,
+      boardroom: b.boardroom?.name ?? null,
+      owner: `${b.bookedByUser?.firstName ?? ''} ${b.bookedByUser?.lastName ?? ''}`.trim(),
+    }));
 
-      const blockQb = this.blocks
-        .createQueryBuilder('block')
-        .leftJoinAndSelect('block.boardroom', 'boardroom')
-        .where('block.isActive = true');
+    const blockQb = this.blocks
+      .createQueryBuilder('block')
+      .leftJoinAndSelect('block.boardroom', 'boardroom')
+      .where('block.isActive = true');
 
-      if (query.boardroomId) {
-        blockQb.andWhere('block.boardroomId = :boardroomId', { boardroomId: query.boardroomId });
-      }
-      if (query.startDateTime) {
-        blockQb.andWhere('block.endTime >= :startDateTime', { startDateTime: query.startDateTime });
-      }
-      if (query.endDateTime) {
-        blockQb.andWhere('block.startTime <= :endDateTime', { endDateTime: query.endDateTime });
-      }
-
-      const roomBlocks = !query.status || query.status === 'ROOM_BLOCK'
-        ? await blockQb.getMany()
-        : [];
-
-      const blockEvents: CalendarEventResponseDto[] = roomBlocks.map((block) => ({
-        id: block.id,
-        title: `Room block: ${block.reason}`,
-        start: block.startTime,
-        end: block.endTime,
-        status: 'ROOM_BLOCK',
-        boardroomId: block.boardroom?.id ?? null,
-        boardroom: block.boardroom?.name ?? null,
-        owner: 'Facilities',
-      }));
-
-      return [...bookingEvents, ...blockEvents].sort(
-        (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
-      );
-    } catch (error) {
-      throw error;
+    if (query.boardroomId) {
+      blockQb.andWhere('block.boardroomId = :boardroomId', { boardroomId: query.boardroomId });
     }
+    if (query.startDateTime) {
+      blockQb.andWhere('block.endTime >= :startDateTime', { startDateTime: query.startDateTime });
+    }
+    if (query.endDateTime) {
+      blockQb.andWhere('block.startTime <= :endDateTime', { endDateTime: query.endDateTime });
+    }
+
+    const roomBlocks = !query.status || query.status === 'ROOM_BLOCK'
+      ? await blockQb.getMany()
+      : [];
+
+    const blockEvents: CalendarEventResponseDto[] = roomBlocks.map((block) => ({
+      id: block.id,
+      title: `Room block: ${block.reason}`,
+      start: block.startTime,
+      end: block.endTime,
+      status: 'ROOM_BLOCK',
+      boardroomId: block.boardroom?.id ?? null,
+      boardroom: block.boardroom?.name ?? null,
+      owner: 'Facilities',
+    }));
+
+    return [...bookingEvents, ...blockEvents].sort(
+      (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
+    );
   }
 
   async findOne(id: string): Promise<BookingResponseDto> {
-    try {
-      return BookingResponseDto.fromEntity(await this.findOneEntity(id));
-    } catch (error) {
-      throw error;
-    }
+    return BookingResponseDto.fromEntity(await this.findOneEntity(id));
   }
 
   private async findOneEntity(id: string): Promise<Booking> {
@@ -375,211 +329,324 @@ export class BookingsService implements OnApplicationBootstrap, OnApplicationShu
   }
 
   async update(id: string, dto: UpdateBookingDto, user: User): Promise<BookingResponseDto> {
-    try {
-      const booking = await this.findOneEntity(id);
-      const before = this.safeBooking(booking);
+    const booking = await this.findOneEntity(id);
+    const before = this.safeBooking(booking);
 
-      if (user.role?.name === 'Employee' && booking.bookedByUserId !== user.id) {
-        throw new ForbiddenException('You can only update your own bookings');
-      }
-      if (![BookingStatus.PENDING_APPROVAL, BookingStatus.APPROVED].includes(booking.status)) {
-        throw new BadRequestException('Only pending or approved bookings can be updated');
-      }
-
-      const room = booking.boardroom;
-      if (!room) throw new NotFoundException('Boardroom not found');
-
-      const start = dto.startTime ? new Date(dto.startTime) : booking.startDateTime;
-      const end = dto.endTime ? new Date(dto.endTime) : booking.endDateTime;
-      const attendeeCount = dto.attendeeCount ?? booking.attendeeCount;
-
-      await this.validateBookingBasics(
-        { ...dto, title: dto.title ?? booking.title, boardroomId: room.id, startTime: start.toISOString(), endTime: end.toISOString(), attendeeCount } as CreateBookingDto,
-        room,
-        start,
-        end,
-      );
-      await this.validateOperatingRules(room, start, end);
-      const conflictWindow = this.applyBufferWindow(room, start, end);
-      await this.validateNoConflicts(room.id, conflictWindow.start, conflictWindow.end, booking.id);
-
-      if (dto.title !== undefined) booking.title = dto.title;
-      if (dto.description !== undefined) booking.description = dto.description ?? null;
-      if (dto.attendeeCount !== undefined) booking.attendeeCount = attendeeCount;
-      if (dto.meetingType !== undefined) booking.meetingType = dto.meetingType;
-      if (dto.requiresCatering !== undefined) booking.requiresCatering = dto.requiresCatering;
-      if (dto.cateringNotes !== undefined) booking.cateringNotes = dto.cateringNotes ?? null;
-      if (dto.requiresSetup !== undefined) booking.requiresSetup = dto.requiresSetup;
-      if (dto.setupNotes !== undefined) booking.setupNotes = dto.setupNotes ?? null;
-      booking.startDateTime = start;
-      booking.endDateTime = end;
-      if (room.requiresApproval) booking.status = BookingStatus.PENDING_APPROVAL;
-
-      const saved = await this.bookings.save(booking);
-      await this.notifyUser(saved.bookedByUser!, 'Booking updated', `Your booking ${saved.title} was updated.`, 'BOOKING_UPDATED', { bookingId: saved.id });
-      if (saved.bookedByUser) {
-        await this.sendBookingEmail(saved.bookedByUser, `Booking updated: ${saved.title}`, bookingUpdatedHtml(this.buildEmailCtx(saved)));
-      }
-      await this.notifyFacilitiesRequests(saved);
-      await this.audit(user, 'BOOKING_UPDATED', 'Booking', saved.id, before, this.safeBooking(saved));
-      return BookingResponseDto.fromEntity(saved);
-    } catch (error) {
-      throw error;
+    if (user.role?.name === 'Employee' && booking.bookedByUserId !== user.id) {
+      throw new ForbiddenException('You can only update your own bookings');
     }
+    if (![BookingStatus.PENDING_APPROVAL, BookingStatus.APPROVED].includes(booking.status)) {
+      throw new BadRequestException('Only pending or approved bookings can be updated');
+    }
+
+    const room = booking.boardroom;
+    if (!room) throw new NotFoundException('Boardroom not found');
+
+    const start = dto.startTime ? new Date(dto.startTime) : booking.startDateTime;
+    const end = dto.endTime ? new Date(dto.endTime) : booking.endDateTime;
+    const attendeeCount = dto.attendeeCount ?? booking.attendeeCount;
+
+    await this.validateBookingBasics(
+      { ...dto, title: dto.title ?? booking.title, boardroomId: room.id, startTime: start.toISOString(), endTime: end.toISOString(), attendeeCount } as CreateBookingDto,
+      room,
+      start,
+      end,
+    );
+    await this.validateOperatingRules(room, start, end);
+    const conflictWindow = this.applyBufferWindow(room, start, end);
+    await this.validateNoConflicts(room.id, conflictWindow.start, conflictWindow.end, booking.id);
+
+    if (dto.title !== undefined) booking.title = dto.title;
+    if (dto.description !== undefined) booking.description = dto.description ?? null;
+    if (dto.attendeeCount !== undefined) booking.attendeeCount = attendeeCount;
+    if (dto.meetingType !== undefined) booking.meetingType = dto.meetingType;
+    if (dto.requiresCatering !== undefined) booking.requiresCatering = dto.requiresCatering;
+    if (dto.cateringNotes !== undefined) booking.cateringNotes = dto.cateringNotes ?? null;
+    if (dto.requiresSetup !== undefined) booking.requiresSetup = dto.requiresSetup;
+    if (dto.setupNotes !== undefined) booking.setupNotes = dto.setupNotes ?? null;
+    booking.startDateTime = start;
+    booking.endDateTime = end;
+    if (room.requiresApproval) booking.status = BookingStatus.PENDING_APPROVAL;
+
+    const saved = await this.bookings.save(booking);
+    // §12: Booking updated → Booker: change summary
+    if (saved.bookedByUser) {
+      await this.notifications.notify({
+        recipientId: saved.bookedByUser.id,
+        title: 'Booking updated',
+        message: `Your booking "${saved.title}" has been updated.`,
+        type: NotificationType.BookingUpdated,
+      });
+      this.sendBookingEmail(saved.bookedByUser, `Booking updated: ${saved.title}`, bookingUpdatedHtml(this.buildEmailCtx(saved)));
+    }
+    // §12: Booking updated → relevant admins: change summary
+    const changedBy = `${user.firstName} ${user.lastName}`;
+    await this.notifyAndEmailOperationalUsers(
+      'Booking updated',
+      `"${saved.title}" in ${saved.boardroom?.name ?? 'a room'} was updated by ${changedBy}.`,
+      NotificationType.BookingUpdated,
+      bookingUpdatedAdminHtml({
+        recipientName: 'Team',
+        boardroomName: saved.boardroom?.name ?? 'Boardroom',
+        bookingTitle: saved.title,
+        startTime: saved.startDateTime,
+        endTime: saved.endDateTime,
+        changedBy,
+      }),
+      `Booking updated: ${saved.title}`,
+    );
+    // §12: Setup or catering required → FM: operational task details
+    await this.notifyFacilitiesRequests(saved);
+    await this.auditLogs.record({
+      action: 'BOOKING_UPDATED',
+      entity: 'Booking',
+      entityId: saved.id,
+      actorId: user.id,
+      before,
+      after: this.safeBooking(saved),
+    });
+    return BookingResponseDto.fromEntity(saved);
   }
 
   async approve(id: string, user: User): Promise<BookingResponseDto> {
-    try {
-      const booking = await this.findOneEntity(id);
-      const before = this.safeBooking(booking);
-      if (booking.status !== BookingStatus.PENDING_APPROVAL) {
-        throw new BadRequestException('Only pending approval bookings can be approved');
+    // Configurable: FacilitiesManager approval can be disabled via FM_CAN_APPROVE_BOOKINGS setting
+    if (user.role?.name === 'FacilitiesManager') {
+      const allowed = await this.settings.getBoolean('FM_CAN_APPROVE_BOOKINGS', true);
+      if (!allowed) {
+        throw new ForbiddenException('Facilities Managers are not currently permitted to approve bookings');
       }
-      await this.validateNoConflicts(booking.boardroom.id, booking.startDateTime, booking.endDateTime, booking.id);
-      booking.status = BookingStatus.APPROVED;
-      booking.approvedByUser = user;
-      booking.approvedByUserId = user.id;
-      booking.approvedAt = new Date();
-      const saved = await this.bookings.save(booking);
-      await this.notifyUser(saved.bookedByUser!, 'Booking approved', `Your booking ${saved.title} was approved.`, 'BOOKING_APPROVED', { bookingId: saved.id });
-      if (saved.bookedByUser) {
-        await this.sendBookingEmail(saved.bookedByUser, `Booking confirmed: ${saved.title}`, bookingConfirmedHtml(this.buildEmailCtx(saved)));
-      }
-      await this.audit(user, 'BOOKING_APPROVED', 'Booking', saved.id, before, this.safeBooking(saved));
-      return BookingResponseDto.fromEntity(saved);
-    } catch (error) {
-      throw error;
     }
+    const booking = await this.findOneEntity(id);
+    const before = this.safeBooking(booking);
+    if (booking.status !== BookingStatus.PENDING_APPROVAL) {
+      throw new BadRequestException('Only pending approval bookings can be approved');
+    }
+    await this.validateNoConflicts(booking.boardroom.id, booking.startDateTime, booking.endDateTime, booking.id);
+    booking.status = BookingStatus.APPROVED;
+    booking.approvedByUser = user;
+    booking.approvedByUserId = user.id;
+    booking.approvedAt = new Date();
+    const saved = await this.bookings.save(booking);
+    if (saved.bookedByUser) {
+      // §12: Booking approved → Booker: confirmation that booking is approved
+      await this.notifications.notify({
+        recipientId: saved.bookedByUser.id,
+        title: 'Booking approved',
+        message: `Your booking "${saved.title}" has been approved and confirmed.`,
+        type: NotificationType.BookingApproved,
+      });
+      this.sendBookingEmail(saved.bookedByUser, `Booking confirmed: ${saved.title}`, bookingConfirmedHtml(this.buildEmailCtx(saved)));
+    }
+    await this.auditLogs.record({
+      action: 'BOOKING_APPROVED',
+      entity: 'Booking',
+      entityId: saved.id,
+      actorId: user.id,
+      before,
+      after: this.safeBooking(saved),
+    });
+    return BookingResponseDto.fromEntity(saved);
   }
 
   async reject(id: string, user: User, reason: string): Promise<BookingResponseDto> {
-    try {
-      const booking = await this.findOneEntity(id);
-      const before = this.safeBooking(booking);
-      if (!reason?.trim()) throw new BadRequestException('Rejection reason is required');
-      if (booking.status !== BookingStatus.PENDING_APPROVAL) {
-        throw new BadRequestException('Only pending approval bookings can be rejected');
+    // Configurable: FacilitiesManager rejection can be disabled via FM_CAN_APPROVE_BOOKINGS setting
+    if (user.role?.name === 'FacilitiesManager') {
+      const allowed = await this.settings.getBoolean('FM_CAN_APPROVE_BOOKINGS', true);
+      if (!allowed) {
+        throw new ForbiddenException('Facilities Managers are not currently permitted to reject bookings');
       }
-      booking.status = BookingStatus.REJECTED;
-      booking.rejectedByUser = user;
-      booking.rejectedByUserId = user.id;
-      booking.rejectionReason = reason;
-      booking.rejectedAt = new Date();
-      const saved = await this.bookings.save(booking);
-      await this.notifyUser(saved.bookedByUser!, 'Booking rejected', `Your booking ${saved.title} was rejected: ${reason}`, 'BOOKING_REJECTED', { bookingId: saved.id });
-      if (saved.bookedByUser) {
-        await this.sendBookingEmail(saved.bookedByUser, `Booking rejected: ${saved.title}`, bookingRejectedHtml(this.buildEmailCtx(saved)));
-      }
-      await this.audit(user, 'BOOKING_REJECTED', 'Booking', saved.id, before, this.safeBooking(saved));
-      return BookingResponseDto.fromEntity(saved);
-    } catch (error) {
-      throw error;
     }
+    const booking = await this.findOneEntity(id);
+    const before = this.safeBooking(booking);
+    if (!reason?.trim()) throw new BadRequestException('Rejection reason is required');
+    if (booking.status !== BookingStatus.PENDING_APPROVAL) {
+      throw new BadRequestException('Only pending approval bookings can be rejected');
+    }
+    booking.status = BookingStatus.REJECTED;
+    booking.rejectedByUser = user;
+    booking.rejectedByUserId = user.id;
+    booking.rejectionReason = reason;
+    booking.rejectedAt = new Date();
+    const saved = await this.bookings.save(booking);
+    if (saved.bookedByUser) {
+      // §12: Booking rejected → Booker: rejection notice with reason
+      await this.notifications.notify({
+        recipientId: saved.bookedByUser.id,
+        title: 'Booking rejected',
+        message: `Your booking "${saved.title}" was rejected. Reason: ${reason}`,
+        type: NotificationType.BookingRejected,
+      });
+      this.sendBookingEmail(saved.bookedByUser, `Booking rejected: ${saved.title}`, bookingRejectedHtml(this.buildEmailCtx(saved)));
+    }
+    await this.auditLogs.record({
+      action: 'BOOKING_REJECTED',
+      entity: 'Booking',
+      entityId: saved.id,
+      actorId: user.id,
+      before,
+      after: this.safeBooking(saved),
+    });
+    return BookingResponseDto.fromEntity(saved);
   }
 
   async cancel(id: string, user: User, reason?: string): Promise<BookingResponseDto> {
-    try {
-      const booking = await this.findOneEntity(id);
-      const before = this.safeBooking(booking);
-      if (user.role?.name === 'Employee' && booking.bookedByUserId !== user.id) {
-        throw new ForbiddenException('You can only cancel your own bookings');
-      }
-      if ([BookingStatus.CANCELLED, BookingStatus.REJECTED, BookingStatus.COMPLETED, BookingStatus.NO_SHOW].includes(booking.status)) {
-        throw new BadRequestException('This booking can no longer be cancelled');
-      }
-      booking.status = BookingStatus.CANCELLED;
-      booking.cancellationReason = reason ?? 'Cancelled';
-      const saved = await this.bookings.save(booking);
-      await this.notifyUser(saved.bookedByUser!, 'Booking cancelled', `Your booking ${saved.title} was cancelled.`, 'BOOKING_CANCELLED', { bookingId: saved.id });
-      if (saved.bookedByUser) {
-        await this.sendBookingEmail(saved.bookedByUser, `Booking cancelled: ${saved.title}`, bookingCancelledHtml(this.buildEmailCtx(saved)));
-      }
-      await this.notifyOperationalUsers('Booking cancelled', `${saved.title} was cancelled.`, 'BOOKING_CANCELLED', { bookingId: saved.id });
-      await this.audit(user, 'BOOKING_CANCELLED', 'Booking', saved.id, before, this.safeBooking(saved));
-      return BookingResponseDto.fromEntity(saved);
-    } catch (error) {
-      throw error;
+    const booking = await this.findOneEntity(id);
+    const before = this.safeBooking(booking);
+    if (user.role?.name === 'Employee' && booking.bookedByUserId !== user.id) {
+      throw new ForbiddenException('You can only cancel your own bookings');
     }
+    if ([BookingStatus.CANCELLED, BookingStatus.REJECTED, BookingStatus.COMPLETED, BookingStatus.NO_SHOW].includes(booking.status)) {
+      throw new BadRequestException('This booking can no longer be cancelled');
+    }
+    booking.status = BookingStatus.CANCELLED;
+    booking.cancellationReason = reason ?? 'Cancelled';
+    booking.cancelledAt = new Date();
+    const saved = await this.bookings.save(booking);
+    const cancelledByName = `${user.firstName} ${user.lastName}`;
+    const cancelReason = booking.cancellationReason ?? 'No reason provided';
+
+    // §12: Booking cancelled → Booker: cancellation notice with reason
+    if (saved.bookedByUser) {
+      await this.notifications.notify({
+        recipientId: saved.bookedByUser.id,
+        title: 'Booking cancelled',
+        message: `Your booking "${saved.title}" was cancelled. ${cancelReason !== 'Cancelled' ? `Reason: ${cancelReason}` : ''}`.trim(),
+        type: NotificationType.BookingCancelled,
+      });
+      this.sendBookingEmail(saved.bookedByUser, `Booking cancelled: ${saved.title}`, bookingCancelledHtml(this.buildEmailCtx(saved)));
+    }
+    // §12: Booking cancelled → relevant admins: cancellation notice with reason
+    await this.notifyAndEmailOperationalUsers(
+      'Booking cancelled',
+      `"${saved.title}" in ${saved.boardroom?.name ?? 'a room'} was cancelled by ${cancelledByName}. Reason: ${cancelReason}`,
+      NotificationType.BookingCancelled,
+      bookingCancelledAdminHtml({
+        ...this.buildEmailCtx(saved),
+        userName: 'Team',
+        cancelledByName,
+      }),
+      `Booking cancelled: ${saved.title}`,
+    );
+    await this.auditLogs.record({
+      action: 'BOOKING_CANCELLED',
+      entity: 'Booking',
+      entityId: saved.id,
+      actorId: user.id,
+      before,
+      after: this.safeBooking(saved),
+    });
+    return BookingResponseDto.fromEntity(saved);
   }
 
   async complete(id: string, user?: User): Promise<BookingResponseDto> {
-    try {
-      const booking = await this.findOneEntity(id);
-      const before = this.safeBooking(booking);
-      if (booking.status !== BookingStatus.APPROVED) {
-        throw new BadRequestException('Only approved bookings can be completed');
-      }
-      booking.status = BookingStatus.COMPLETED;
-      const saved = await this.bookings.save(booking);
-      await this.audit(user ?? null, 'BOOKING_COMPLETED', 'Booking', saved.id, before, this.safeBooking(saved));
-      return BookingResponseDto.fromEntity(saved);
-    } catch (error) {
-      throw error;
+    const booking = await this.findOneEntity(id);
+    const before = this.safeBooking(booking);
+    if (booking.status !== BookingStatus.APPROVED) {
+      throw new BadRequestException('Only approved bookings can be completed');
     }
+    booking.status = BookingStatus.COMPLETED;
+    const saved = await this.bookings.save(booking);
+    await this.auditLogs.record({
+      action: 'BOOKING_COMPLETED',
+      entity: 'Booking',
+      entityId: saved.id,
+      actorId: user?.id ?? null,
+      before,
+      after: this.safeBooking(saved),
+    });
+    return BookingResponseDto.fromEntity(saved);
   }
 
   async noShow(id: string, user?: User): Promise<BookingResponseDto> {
-    try {
-      const booking = await this.findOneEntity(id);
-      const before = this.safeBooking(booking);
-      if (booking.status !== BookingStatus.APPROVED) {
-        throw new BadRequestException('Only approved bookings can be marked no-show');
-      }
-      booking.status = BookingStatus.NO_SHOW;
-      const saved = await this.bookings.save(booking);
-      await this.audit(user ?? null, 'BOOKING_NO_SHOW', 'Booking', saved.id, before, this.safeBooking(saved));
-      return BookingResponseDto.fromEntity(saved);
-    } catch (error) {
-      throw error;
+    const booking = await this.findOneEntity(id);
+    const before = this.safeBooking(booking);
+    if (booking.status !== BookingStatus.APPROVED) {
+      throw new BadRequestException('Only approved bookings can be marked no-show');
     }
+    booking.status = BookingStatus.NO_SHOW;
+    const saved = await this.bookings.save(booking);
+    await this.auditLogs.record({
+      action: 'BOOKING_NO_SHOW',
+      entity: 'Booking',
+      entityId: saved.id,
+      actorId: user?.id ?? null,
+      before,
+      after: this.safeBooking(saved),
+    });
+    return BookingResponseDto.fromEntity(saved);
+  }
+
+  async remove(id: string, user: User): Promise<void> {
+    const booking = await this.findOneEntity(id);
+    if (booking.status !== BookingStatus.CANCELLED && booking.status !== BookingStatus.REJECTED) {
+      throw new BadRequestException('Only cancelled or rejected bookings can be permanently deleted');
+    }
+    await this.auditLogs.record({
+      action: 'BOOKING_DELETED',
+      entity: 'Booking',
+      entityId: id,
+      actorId: user?.id ?? null,
+      before: this.safeBooking(booking),
+    });
+    await this.bookings.delete(id);
   }
 
   async sendDueReminders(): Promise<{ windowMinutes: number; sent: number; failed: number; skipped: number }> {
-    try {
-      const remindersEnabled = await this.getBooleanSetting('EMAIL_REMINDERS_ENABLED', true);
-      const windowMinutes = await this.getNumberSetting('BOOKING_REMINDER_MINUTES_BEFORE', 15);
-      if (!remindersEnabled) return { windowMinutes, sent: 0, failed: 0, skipped: 0 };
+    const remindersEnabled = await this.settings.getBoolean('EMAIL_REMINDERS_ENABLED', true);
+    const windowMinutes = await this.settings.getNumber('BOOKING_REMINDER_MINUTES_BEFORE', 15);
+    if (!remindersEnabled) return { windowMinutes, sent: 0, failed: 0, skipped: 0 };
 
-      const now = new Date();
-      const windowEnd = new Date(now.getTime() + windowMinutes * 60000);
-      const dueBookings = await this.bookings
-        .createQueryBuilder('booking')
-        .leftJoinAndSelect('booking.boardroom', 'boardroom')
-        .leftJoinAndSelect('booking.bookedByUser', 'bookedByUser')
-        .where('booking.status = :status', { status: BookingStatus.APPROVED })
-        .andWhere('booking.startDateTime >= :now', { now })
-        .andWhere('booking.startDateTime <= :windowEnd', { windowEnd })
-        .orderBy('booking.startDateTime', 'ASC')
-        .getMany();
+    const now = new Date();
+    const windowEnd = new Date(now.getTime() + windowMinutes * 60000);
+    const dueBookings = await this.bookings
+      .createQueryBuilder('booking')
+      .leftJoinAndSelect('booking.boardroom', 'boardroom')
+      .leftJoinAndSelect('booking.bookedByUser', 'bookedByUser')
+      .where('booking.status = :status', { status: BookingStatus.APPROVED })
+      .andWhere('booking.startDateTime >= :now', { now })
+      .andWhere('booking.startDateTime <= :windowEnd', { windowEnd })
+      .orderBy('booking.startDateTime', 'ASC')
+      .getMany();
 
-      let sent = 0;
-      let skipped = 0;
+    let sent = 0;
+    let failed = 0;
+    let skipped = 0;
 
-      for (const booking of dueBookings) {
-        if (!booking.bookedByUser) { skipped += 1; continue; }
-        await this.notifyUser(
+    for (const booking of dueBookings) {
+      if (!booking.bookedByUser) { skipped += 1; continue; }
+      try {
+        await this.notifications.notify({
+          recipientId: booking.bookedByUser.id,
+          title: 'Booking reminder',
+          message: `Reminder: your booking "${booking.title}" starts in ${windowMinutes} minute(s) or less.`,
+          type: NotificationType.BookingReminder,
+        });
+        this.sendBookingEmail(
           booking.bookedByUser,
-          'Booking reminder',
-          `Reminder: your booking "${booking.title}" starts in ${windowMinutes} minute(s) or less.`,
-          'BOOKING_REMINDER',
-          { bookingId: booking.id, boardroomId: booking.boardroom?.id },
+          `Reminder: ${booking.title} starts soon`,
+          bookingReminderHtml({
+            userName: `${booking.bookedByUser.firstName} ${booking.bookedByUser.lastName}`.trim(),
+            boardroomName: booking.boardroom?.name ?? 'Boardroom',
+            bookingTitle: booking.title,
+            startTime: booking.startDateTime,
+            endTime: booking.endDateTime,
+            reminderMinutes: windowMinutes,
+          }),
         );
         sent += 1;
+      } catch {
+        failed += 1;
       }
-
-      return { windowMinutes, sent, failed: 0, skipped };
-    } catch (error) {
-      throw error;
     }
+
+    return { windowMinutes, sent, failed, skipped };
   }
 
-  private async sendBookingEmail(
-    recipient: User,
-    subject: string,
-    html: string,
-  ): Promise<void> {
+  // Fire-and-forget: email sends must not block the API response.
+  // The MailService handles retries and records failures to the audit log internally.
+  private sendBookingEmail(recipient: User, subject: string, html: string): void {
     if (!recipient?.email) return;
-    await this.mail.sendMail({ to: recipient.email, subject, html });
+    void this.mail.sendMail({ to: recipient.email, subject, html });
   }
 
   private buildEmailCtx(booking: Booking): BookingEmailContext {
@@ -595,81 +662,68 @@ export class BookingsService implements OnApplicationBootstrap, OnApplicationShu
     };
   }
 
-  private async notifyUser(
-    user: User,
+  // §12: Generic: in-app + email to Admin, SuperAdmin, FacilitiesManager
+  private async notifyAndEmailOperationalUsers(
     title: string,
     message: string,
-    type: string,
-    metadata?: Record<string, unknown>,
-  ): Promise<void> {
-    if (!user?.id) return;
-    await this.notifications.save(
-      this.notifications.create({ recipientId: user.id, title, message, type: type as any, metadata } as any),
-    );
-  }
-
-  private async notifyOperationalUsers(
-    title: string,
-    message: string,
-    type: string,
-    metadata?: Record<string, unknown>,
+    type: NotificationType,
+    emailHtml: string,
+    emailSubject: string,
   ): Promise<void> {
     const operationalUsers = await this.users
-      .createQueryBuilder('user')
-      .leftJoinAndSelect('user.role', 'role')
-      .where('role.name IN (:...roles)', { roles: ['Admin', 'SuperAdmin', 'FacilitiesManager'] })
-      .getMany();
-
-    for (const user of operationalUsers) {
-      await this.notifyUser(user, title, message, type, metadata);
-    }
-  }
-
-  private async notifyFacilitiesRequests(booking: Booking): Promise<void> {
-    const requests: string[] = [];
-    if (booking.requiresCatering) {
-      requests.push(`Catering${booking.cateringNotes ? `: ${booking.cateringNotes}` : ''}`);
-    }
-    if (booking.requiresSetup) {
-      requests.push(`Setup${booking.setupNotes ? `: ${booking.setupNotes}` : ''}`);
-    }
-    if (requests.length === 0) return;
-
-    const facilitiesUsers = await this.users
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.role', 'role')
       .where('role.name IN (:...roles)', { roles: ['Admin', 'SuperAdmin', 'FacilitiesManager'] })
       .andWhere('user.isActive = true')
       .getMany();
 
-    for (const user of facilitiesUsers) {
-      await this.notifyUser(
-        user,
-        'Facilities request',
-        `${booking.title} in ${booking.boardroom?.name ?? 'a boardroom'} needs ${requests.join(' and ')}.`,
-        'FACILITIES_REQUEST',
-        { bookingId: booking.id, boardroomId: booking.boardroom?.id, requiresCatering: booking.requiresCatering, requiresSetup: booking.requiresSetup },
-      );
+    for (const user of operationalUsers) {
+      await this.notifications.notify({ recipientId: user.id, title, message, type });
+      this.sendBookingEmail(user, emailSubject, emailHtml);
     }
   }
 
-  private async audit(
-    actor: User | null,
-    action: string,
-    entityName: string,
-    entityId?: string,
-    before?: Record<string, unknown> | null,
-    after?: Record<string, unknown> | null,
-  ): Promise<void> {
-    await this.auditLogs.save(
-      this.auditLogs.create({
-        actorId: actor?.id ?? null,
-        action,
-        entity: entityName,
-        entityId: entityId ?? null,
-        metadata: { before: before ?? undefined, after: after ?? undefined },
-      }),
-    );
+  // §12: Setup or catering required → Facilities Manager only (not Admin/SuperAdmin)
+  private async notifyFacilitiesRequests(booking: Booking): Promise<void> {
+    if (!booking.requiresCatering && !booking.requiresSetup) return;
+
+    const facilitiesUsers = await this.users
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .where('role.name = :role', { role: 'FacilitiesManager' })
+      .andWhere('user.isActive = true')
+      .getMany();
+
+    if (facilitiesUsers.length === 0) return;
+
+    const taskParts: string[] = [];
+    if (booking.requiresCatering) taskParts.push(`catering${booking.cateringNotes ? ` (${booking.cateringNotes})` : ''}`);
+    if (booking.requiresSetup) taskParts.push(`room setup${booking.setupNotes ? ` (${booking.setupNotes})` : ''}`);
+    const taskSummary = taskParts.join(' and ');
+
+    const emailHtml = facilitiesRequestHtml({
+      boardroomName: booking.boardroom?.name ?? 'Boardroom',
+      bookingTitle: booking.title,
+      startTime: booking.startDateTime,
+      endTime: booking.endDateTime,
+      bookerName: booking.bookedByUser
+        ? `${booking.bookedByUser.firstName} ${booking.bookedByUser.lastName}`
+        : 'Unknown',
+      requiresCatering: booking.requiresCatering,
+      cateringNotes: booking.cateringNotes,
+      requiresSetup: booking.requiresSetup,
+      setupNotes: booking.setupNotes,
+    });
+
+    for (const user of facilitiesUsers) {
+      await this.notifications.notify({
+        recipientId: user.id,
+        title: 'Facilities request',
+        message: `"${booking.title}" in ${booking.boardroom?.name ?? 'a room'} requires ${taskSummary}.`,
+        type: NotificationType.FacilitiesRequest,
+      });
+      this.sendBookingEmail(user, `Facilities request: ${booking.title}`, emailHtml);
+    }
   }
 
   private safeBooking(booking: Booking): Record<string, unknown> {
@@ -683,24 +737,5 @@ export class BookingsService implements OnApplicationBootstrap, OnApplicationShu
       endDateTime: booking.endDateTime,
       attendeeCount: booking.attendeeCount,
     };
-  }
-
-  private async getBooleanSetting(key: string, fallback: boolean): Promise<boolean> {
-    const setting = await this.settings.findOne({ where: { key } });
-    if (!setting) return fallback;
-    return ['true', 'yes', '1'].includes(setting.value?.toLowerCase() ?? '');
-  }
-
-  private booleanEnv(key: string, fallback: boolean): boolean {
-    const value = process.env[key];
-    if (!value) return fallback;
-    return ['true', 'yes', '1'].includes(value.toLowerCase());
-  }
-
-  private async getNumberSetting(key: string, fallback: number): Promise<number> {
-    const setting = await this.settings.findOne({ where: { key } });
-    if (!setting) return fallback;
-    const parsed = Number(setting.value);
-    return Number.isFinite(parsed) ? parsed : fallback;
   }
 }

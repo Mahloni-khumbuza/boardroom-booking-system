@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -13,6 +16,7 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiCreatedResponse,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiQuery,
@@ -159,6 +163,18 @@ export class BookingsController {
     @CurrentUser() user: User,
   ): Promise<BookingResponseDto> {
     return this.bookingsService.noShow(id, user);
+  }
+
+  @Delete(':id')
+  @Roles(RoleName.ADMIN, RoleName.SUPER_ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Permanently delete a cancelled booking', operationId: 'deleteBooking' })
+  @ApiNoContentResponse()
+  remove(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @CurrentUser() user: User,
+  ): Promise<void> {
+    return this.bookingsService.remove(id, user);
   }
 
   @Post('send-reminders')
