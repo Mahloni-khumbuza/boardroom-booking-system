@@ -36,113 +36,147 @@ export class BoardroomBlocksService {
   ) {}
 
   async findAll(query: BoardroomBlockQueryDto = {}): Promise<BoardroomBlockResponseDto[]> {
-    const where: Record<string, unknown> = {};
-    if (query.boardroomId) where['boardroomId'] = query.boardroomId;
-    if (query.from && query.to) {
-      where['startTime'] = Between(new Date(query.from), new Date(query.to));
-    } else if (query.from) {
-      where['endTime'] = MoreThanOrEqual(new Date(query.from));
-    } else if (query.to) {
-      where['startTime'] = LessThanOrEqual(new Date(query.to));
+    try {
+      const where: Record<string, unknown> = {};
+      if (query.boardroomId) where['boardroomId'] = query.boardroomId;
+      if (query.from && query.to) {
+        where['startTime'] = Between(new Date(query.from), new Date(query.to));
+      } else if (query.from) {
+        where['endTime'] = MoreThanOrEqual(new Date(query.from));
+      } else if (query.to) {
+        where['startTime'] = LessThanOrEqual(new Date(query.to));
+      }
+      const blocks = await this.repo.find({
+        where,
+        relations: { boardroom: true, createdBy: true },
+        order: { startTime: 'ASC' },
+        take: 500,
+      });
+      return BoardroomBlockResponseDto.collection(blocks);
+    } catch (error) {
+      this.logger.error('Failed to fetch boardroom blocks', error);
+      throw error;
     }
-    const blocks = await this.repo.find({
-      where,
-      relations: { boardroom: true, createdBy: true },
-      order: { startTime: 'ASC' },
-      take: 500,
-    });
-    return BoardroomBlockResponseDto.collection(blocks);
   }
 
   async findOne(id: string): Promise<BoardroomBlockResponseDto> {
-    return BoardroomBlockResponseDto.fromEntity(await this.findOneEntity(id));
+    try {
+      return BoardroomBlockResponseDto.fromEntity(await this.findOneEntity(id));
+    } catch (error) {
+      this.logger.error(`Failed to fetch boardroom block ${id}`, error);
+      throw error;
+    }
   }
 
   async create(dto: CreateBoardroomBlockDto, actorId: string): Promise<BoardroomBlockResponseDto> {
-    const start = new Date(dto.startTime);
-    const end = new Date(dto.endTime);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      throw new BadRequestException('Invalid start or end time');
+    try {
+      const start = new Date(dto.startTime);
+      const end = new Date(dto.endTime);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+        throw new BadRequestException('Invalid start or end time');
+      }
+      if (end <= start) throw new BadRequestException('endTime must be after startTime');
+
+      const boardroom = await this.boardroomsRepo.findOne({ where: { id: dto.boardroomId } });
+      if (!boardroom) throw new BadRequestException(`Boardroom ${dto.boardroomId} not found`);
+
+      const block = this.repo.create({
+        boardroomId: boardroom.id,
+        startTime: start,
+        endTime: end,
+        reason: dto.reason.trim(),
+        createdById: actorId,
+      });
+      const saved = await this.repo.save(block);
+
+      await this.auditLogs.record({
+        action: 'boardroom_block.created',
+        entity: 'boardroom_block',
+        entityId: saved.id,
+        actorId,
+        metadata: { boardroomId: boardroom.id, reason: saved.reason, startTime: saved.startTime, endTime: saved.endTime },
+      });
+
+      await this.notifyRoomBlocked(boardroom, saved, actorId);
+
+      return BoardroomBlockResponseDto.fromEntity(await this.findOneEntity(saved.id));
+    } catch (error) {
+      this.logger.error('Failed to create boardroom block', error);
+      throw error;
     }
-    if (end <= start) throw new BadRequestException('endTime must be after startTime');
-
-    const boardroom = await this.boardroomsRepo.findOne({ where: { id: dto.boardroomId } });
-    if (!boardroom) throw new BadRequestException(`Boardroom ${dto.boardroomId} not found`);
-
-    const block = this.repo.create({
-      boardroomId: boardroom.id,
-      startTime: start,
-      endTime: end,
-      reason: dto.reason.trim(),
-      createdById: actorId,
-    });
-    const saved = await this.repo.save(block);
-
-    await this.auditLogs.record({
-      action: 'boardroom_block.created',
-      entity: 'boardroom_block',
-      entityId: saved.id,
-      actorId,
-      metadata: { boardroomId: boardroom.id, reason: saved.reason, startTime: saved.startTime, endTime: saved.endTime },
-    });
-
-    // §12: Room blocked → Admins and facilities users: room unavailable notice
-    await this.notifyRoomBlocked(boardroom, saved, actorId);
-
-    return BoardroomBlockResponseDto.fromEntity(await this.findOneEntity(saved.id));
   }
 
   async update(id: string, dto: UpdateBoardroomBlockDto, actorId: string): Promise<BoardroomBlockResponseDto> {
-    const block = await this.findOneEntity(id);
-    const before = { reason: block.reason, startTime: block.startTime, endTime: block.endTime, isActive: block.isActive };
-    const start = dto.startTime ? new Date(dto.startTime) : block.startTime;
-    const end = dto.endTime ? new Date(dto.endTime) : block.endTime;
-    if (end <= start) throw new BadRequestException('endTime must be after startTime');
+    try {
+      const block = await this.findOneEntity(id);
+      const before = { reason: block.reason, startTime: block.startTime, endTime: block.endTime, isActive: block.isActive };
+      const start = dto.startTime ? new Date(dto.startTime) : block.startTime;
+      const end = dto.endTime ? new Date(dto.endTime) : block.endTime;
+      if (end <= start) throw new BadRequestException('endTime must be after startTime');
 
-    if (dto.reason !== undefined) block.reason = dto.reason.trim();
-    if (dto.isActive !== undefined) block.isActive = dto.isActive;
-    block.startTime = start;
-    block.endTime = end;
-    await this.repo.save(block);
-    await this.auditLogs.record({
-      action: 'boardroom_block.updated',
-      entity: 'boardroom_block',
-      entityId: id,
-      actorId,
-      before,
-      after: { reason: block.reason, startTime: block.startTime, endTime: block.endTime, isActive: block.isActive },
-    });
-    return BoardroomBlockResponseDto.fromEntity(await this.findOneEntity(id));
+      if (dto.reason !== undefined) block.reason = dto.reason.trim();
+      if (dto.isActive !== undefined) block.isActive = dto.isActive;
+      block.startTime = start;
+      block.endTime = end;
+      await this.repo.save(block);
+      await this.auditLogs.record({
+        action: 'boardroom_block.updated',
+        entity: 'boardroom_block',
+        entityId: id,
+        actorId,
+        before,
+        after: { reason: block.reason, startTime: block.startTime, endTime: block.endTime, isActive: block.isActive },
+      });
+      return BoardroomBlockResponseDto.fromEntity(await this.findOneEntity(id));
+    } catch (error) {
+      this.logger.error(`Failed to update boardroom block ${id}`, error);
+      throw error;
+    }
   }
 
   async activate(id: string, actorId: string): Promise<BoardroomBlockResponseDto> {
-    const block = await this.findOneEntity(id);
-    if (block.isActive) return BoardroomBlockResponseDto.fromEntity(block);
-    block.isActive = true;
-    await this.repo.save(block);
-    await this.auditLogs.record({ action: 'boardroom_block.activated', entity: 'boardroom_block', entityId: id, actorId });
-    return BoardroomBlockResponseDto.fromEntity(await this.findOneEntity(id));
+    try {
+      const block = await this.findOneEntity(id);
+      if (block.isActive) return BoardroomBlockResponseDto.fromEntity(block);
+      block.isActive = true;
+      await this.repo.save(block);
+      await this.auditLogs.record({ action: 'boardroom_block.activated', entity: 'boardroom_block', entityId: id, actorId });
+      return BoardroomBlockResponseDto.fromEntity(await this.findOneEntity(id));
+    } catch (error) {
+      this.logger.error(`Failed to activate boardroom block ${id}`, error);
+      throw error;
+    }
   }
 
   async deactivate(id: string, actorId: string): Promise<BoardroomBlockResponseDto> {
-    const block = await this.findOneEntity(id);
-    if (!block.isActive) return BoardroomBlockResponseDto.fromEntity(block);
-    block.isActive = false;
-    await this.repo.save(block);
-    await this.auditLogs.record({ action: 'boardroom_block.deactivated', entity: 'boardroom_block', entityId: id, actorId });
-    return BoardroomBlockResponseDto.fromEntity(await this.findOneEntity(id));
+    try {
+      const block = await this.findOneEntity(id);
+      if (!block.isActive) return BoardroomBlockResponseDto.fromEntity(block);
+      block.isActive = false;
+      await this.repo.save(block);
+      await this.auditLogs.record({ action: 'boardroom_block.deactivated', entity: 'boardroom_block', entityId: id, actorId });
+      return BoardroomBlockResponseDto.fromEntity(await this.findOneEntity(id));
+    } catch (error) {
+      this.logger.error(`Failed to deactivate boardroom block ${id}`, error);
+      throw error;
+    }
   }
 
   async remove(id: string, actorId: string): Promise<void> {
-    const block = await this.findOneEntity(id);
-    await this.repo.delete(block.id);
-    await this.auditLogs.record({
-      action: 'boardroom_block.removed',
-      entity: 'boardroom_block',
-      entityId: id,
-      actorId,
-      metadata: { reason: block.reason, boardroomId: block.boardroomId },
-    });
+    try {
+      const block = await this.findOneEntity(id);
+      await this.repo.delete(block.id);
+      await this.auditLogs.record({
+        action: 'boardroom_block.removed',
+        entity: 'boardroom_block',
+        entityId: id,
+        actorId,
+        metadata: { reason: block.reason, boardroomId: block.boardroomId },
+      });
+    } catch (error) {
+      this.logger.error(`Failed to remove boardroom block ${id}`, error);
+      throw error;
+    }
   }
 
   async findOverlapping(boardroomId: string, start: Date, end: Date): Promise<BoardroomBlock | null> {

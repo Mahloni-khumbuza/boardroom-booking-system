@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -14,6 +15,8 @@ import { UpdateRoleDto } from '../dto/update-role.dto';
 
 @Injectable()
 export class RolesService {
+  private readonly logger = new Logger(RolesService.name);
+
   constructor(
     @InjectRepository(Role)
     private readonly rolesRepository: Repository<Role>,
@@ -24,42 +27,67 @@ export class RolesService {
   ) {}
 
   async findAll(): Promise<Role[]> {
-    return this.rolesRepository.find({ order: { name: 'ASC' }, relations: { permissions: true } });
+    try {
+      return await this.rolesRepository.find({ order: { name: 'ASC' }, relations: { permissions: true } });
+    } catch (error) {
+      this.logger.error('Failed to fetch roles', error);
+      throw error;
+    }
   }
 
   async findOne(id: string): Promise<Role> {
-    const role = await this.rolesRepository.findOne({ where: { id }, relations: { permissions: true } });
-    if (!role) throw new NotFoundException(`Role ${id} not found`);
-    return role;
+    try {
+      const role = await this.rolesRepository.findOne({ where: { id }, relations: { permissions: true } });
+      if (!role) throw new NotFoundException(`Role ${id} not found`);
+      return role;
+    } catch (error) {
+      this.logger.error(`Failed to fetch role ${id}`, error);
+      throw error;
+    }
   }
 
   async create(dto: CreateRoleDto): Promise<Role> {
-    const existing = await this.rolesRepository.findOne({ where: { name: dto.name } });
-    if (existing) throw new ConflictException(`Role "${dto.name}" already exists`);
-    const permissions = await this.resolvePermissions(dto.permissionIds);
-    const role = this.rolesRepository.create({ name: dto.name, description: dto.description ?? null, permissions });
-    return this.rolesRepository.save(role);
+    try {
+      const existing = await this.rolesRepository.findOne({ where: { name: dto.name } });
+      if (existing) throw new ConflictException(`Role "${dto.name}" already exists`);
+      const permissions = await this.resolvePermissions(dto.permissionIds);
+      const role = this.rolesRepository.create({ name: dto.name, description: dto.description ?? null, permissions });
+      return await this.rolesRepository.save(role);
+    } catch (error) {
+      this.logger.error('Failed to create role', error);
+      throw error;
+    }
   }
 
   async update(id: string, dto: UpdateRoleDto): Promise<Role> {
-    const role = await this.findOne(id);
-    if (dto.name !== undefined && dto.name !== role.name) {
-      const clash = await this.rolesRepository.findOne({ where: { name: dto.name } });
-      if (clash) throw new ConflictException(`Role "${dto.name}" already exists`);
-      role.name = dto.name;
+    try {
+      const role = await this.findOne(id);
+      if (dto.name !== undefined && dto.name !== role.name) {
+        const clash = await this.rolesRepository.findOne({ where: { name: dto.name } });
+        if (clash) throw new ConflictException(`Role "${dto.name}" already exists`);
+        role.name = dto.name;
+      }
+      if (dto.description !== undefined) role.description = dto.description;
+      if (dto.permissionIds !== undefined) role.permissions = await this.resolvePermissions(dto.permissionIds);
+      return await this.rolesRepository.save(role);
+    } catch (error) {
+      this.logger.error(`Failed to update role ${id}`, error);
+      throw error;
     }
-    if (dto.description !== undefined) role.description = dto.description;
-    if (dto.permissionIds !== undefined) role.permissions = await this.resolvePermissions(dto.permissionIds);
-    return this.rolesRepository.save(role);
   }
 
   async remove(id: string): Promise<void> {
-    const role = await this.findOne(id);
-    const inUse = await this.usersRepository.count({ where: { roleId: role.id } });
-    if (inUse > 0) {
-      throw new ConflictException(`Cannot delete role "${role.name}" — ${inUse} user(s) still assigned`);
+    try {
+      const role = await this.findOne(id);
+      const inUse = await this.usersRepository.count({ where: { roleId: role.id } });
+      if (inUse > 0) {
+        throw new ConflictException(`Cannot delete role "${role.name}" — ${inUse} user(s) still assigned`);
+      }
+      await this.rolesRepository.delete(role.id);
+    } catch (error) {
+      this.logger.error(`Failed to remove role ${id}`, error);
+      throw error;
     }
-    await this.rolesRepository.delete(role.id);
   }
 
   private async resolvePermissions(ids: string[] | undefined): Promise<Permission[]> {

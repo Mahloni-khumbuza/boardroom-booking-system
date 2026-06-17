@@ -15,40 +15,66 @@ export class AmenitiesService {
   ) {}
 
   async findAll(): Promise<Amenity[]> {
-    return this.amenitiesRepository.find({ order: { name: 'ASC' } });
+    try {
+      return await this.amenitiesRepository.find({ order: { name: 'ASC' } });
+    } catch (error) {
+      this.logger.error('Failed to fetch amenities', error);
+      throw error;
+    }
   }
 
   async findOne(id: string): Promise<Amenity> {
-    const amenity = await this.amenitiesRepository.findOne({ where: { id } });
-    if (!amenity) throw new NotFoundException(`Amenity ${id} not found`);
-    return amenity;
+    try {
+      const amenity = await this.amenitiesRepository.findOne({ where: { id } });
+      if (!amenity) throw new NotFoundException(`Amenity ${id} not found`);
+      return amenity;
+    } catch (error) {
+      this.logger.error(`Failed to fetch amenity ${id}`, error);
+      throw error;
+    }
   }
 
   async create(dto: CreateAmenityDto): Promise<Amenity> {
-    const clash = await this.amenitiesRepository.findOne({ where: { name: dto.name } });
-    if (clash) throw new ConflictException(`Amenity "${dto.name}" already exists`);
-    const amenity = this.amenitiesRepository.create({
-      name: dto.name,
-      description: dto.description ?? null,
-      icon: dto.icon ?? null,
-    });
-    return this.amenitiesRepository.save(amenity);
+    try {
+      const clash = await this.amenitiesRepository.findOne({ where: { name: dto.name } });
+      if (clash) throw new ConflictException(`Amenity "${dto.name}" already exists`);
+      const amenity = this.amenitiesRepository.create({
+        name: dto.name,
+        description: dto.description ?? null,
+        icon: dto.icon ?? null,
+      });
+      return await this.amenitiesRepository.save(amenity);
+    } catch (error) {
+      this.logger.error('Failed to create amenity', error);
+      throw error;
+    }
   }
 
   async update(id: string, dto: UpdateAmenityDto): Promise<Amenity> {
-    const amenity = await this.findOne(id);
-    if (dto.name !== undefined && dto.name !== amenity.name) {
-      const clash = await this.amenitiesRepository.findOne({ where: { name: dto.name } });
-      if (clash) throw new ConflictException(`Amenity "${dto.name}" already exists`);
-      amenity.name = dto.name;
+    try {
+      const amenity = await this.findOne(id);
+      if (dto.name !== undefined && dto.name !== amenity.name) {
+        const clash = await this.amenitiesRepository.findOne({ where: { name: dto.name } });
+        if (clash) throw new ConflictException(`Amenity "${dto.name}" already exists`);
+        amenity.name = dto.name;
+      }
+      if (dto.description !== undefined) amenity.description = dto.description;
+      if (dto.icon !== undefined) amenity.icon = dto.icon;
+      return await this.amenitiesRepository.save(amenity);
+    } catch (error) {
+      this.logger.error(`Failed to update amenity ${id}`, error);
+      throw error;
     }
-    if (dto.description !== undefined) amenity.description = dto.description;
-    if (dto.icon !== undefined) amenity.icon = dto.icon;
-    return this.amenitiesRepository.save(amenity);
   }
 
   async remove(id: string): Promise<void> {
-    const result = await this.amenitiesRepository.delete(id);
-    if (result.affected === 0) throw new NotFoundException(`Amenity ${id} not found`);
+    try {
+      const amenity = await this.amenitiesRepository.findOne({ where: { id } });
+      if (!amenity) throw new NotFoundException(`Amenity ${id} not found`);
+      await this.amenitiesRepository.delete(id);
+    } catch (error) {
+      this.logger.error(`Failed to remove amenity ${id}`, error);
+      throw error;
+    }
   }
 }
