@@ -11,6 +11,8 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 import { SharedServicesModule } from '../../shared/services/shared-services.module';
 
+import { BookingReminderService } from './services/booking-reminder.service';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([Booking, Boardroom, BoardroomBlock, User]),
@@ -18,7 +20,10 @@ import { SharedServicesModule } from '../../shared/services/shared-services.modu
     AuditLogsModule,
     SharedServicesModule,
   ],
-  providers: [BookingsService, BookingReminderScheduler],
+  providers: [BookingsService, 
+    BookingReminderScheduler,
+    BookingReminderService,
+    ],
   controllers: [BookingsController],
   exports: [BookingsService, TypeOrmModule],
 })
