@@ -48,16 +48,16 @@
     <full-calendar [options]="calendarOptions" />
   </div>
 
-  <!-- Booking detail panel -->
-  @if (selected(); as s) {
-    <div class="overlay" (click)="closeDetail()"></div>
-    <div class="detail-panel">
-      <div class="detail-header status-{{ s.booking.status }}">
-        <div class="detail-status-row">
-          <span class="status-badge status-{{ s.booking.status }}">{{ statusLabel(s.booking.status) }}</span>
-          <button class="close-btn" (click)="closeDetail()">✕</button>
-        </div>
-        <h2 class="detail-title">{{ s.booking.title }}</h2>
+  <!-- Booking detail modal -->
+  <app-modal
+    [open]="!!selected()"
+    [title]="selected()?.booking?.title ?? 'Booking Detail'"
+    size="sm"
+    (closed)="closeDetail()"
+  >
+    @if (selected(); as s) {
+      <div class="detail-status-row">
+        <span class="status-badge status-{{ s.booking.status }}">{{ statusLabel(s.booking.status) }}</span>
       </div>
 
       <div class="detail-body">
@@ -111,8 +111,8 @@
           }
         </div>
       }
-    </div>
-  }
+    }
+  </app-modal>
 </section>
 
 <app-confirmation-modal

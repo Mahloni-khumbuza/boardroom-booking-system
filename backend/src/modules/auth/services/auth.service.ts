@@ -46,21 +46,33 @@ export class AuthService {
     if (!user || !user.isActive) {
       throw new UnauthorizedException('Invalid email or password');
     }
+  }
 
-    const passwordMatches = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!passwordMatches) {
-      throw new UnauthorizedException('Invalid email or password');
+  async login(dto: LoginDto): Promise<LoginResponseDto> {
+    try {
+      const user = await this.usersService.findByEmail(dto.email);
+      if (!user || !user.isActive) {
+        throw new UnauthorizedException('Invalid email or password');
+      }
+
+      const passwordMatches = await bcrypt.compare(dto.password, user.passwordHash);
+      if (!passwordMatches) {
+        throw new UnauthorizedException('Invalid email or password');
+      }
+
+      await this.auditLogs.record({
+        action: 'auth.login',
+        entity: 'user',
+        entityId: user.id,
+        actorId: user.id,
+        metadata: { email: user.email, role: user.role?.name ?? null },
+      });
+
+      return this.issueToken(user);
+    } catch (error) {
+      this.logger.error(`Login failed for ${dto.email}`, error);
+      throw error;
     }
-
-    await this.auditLogs.record({
-      action: 'auth.login',
-      entity: 'user',
-      entityId: user.id,
-      actorId: user.id,
-      metadata: { email: user.email, role: user.role?.name ?? null },
-    });
-
-    return this.issueToken(user);
   }
 
   private issueToken(user: User): LoginResponseDto {
