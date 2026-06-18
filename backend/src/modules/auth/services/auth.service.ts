@@ -28,21 +28,23 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto): Promise<LoginResponseDto> {
-    try {
-      const created = await this.usersService.createEmployee(dto);
-      const user = await this.usersService.findByEmail(created.email);
-      if (!user) throw new UnauthorizedException('Registration failed');
-      await this.auditLogs.record({
-        action: 'auth.register',
-        entity: 'user',
-        entityId: user.id,
-        actorId: user.id,
-        metadata: { email: user.email },
-      });
-      return this.issueToken(user);
-    } catch (error) {
-      this.logger.error('Registration failed', error);
-      throw error;
+    const created = await this.usersService.createEmployee(dto);
+    const user = await this.usersService.findByEmail(created.email);
+    if (!user) throw new UnauthorizedException('Registration failed');
+    await this.auditLogs.record({
+      action: 'auth.register',
+      entity: 'user',
+      entityId: user.id,
+      actorId: user.id,
+      metadata: { email: user.email },
+    });
+    return this.issueToken(user);
+  }
+
+  async login(dto: LoginDto): Promise<LoginResponseDto> {
+    const user = await this.usersService.findByEmail(dto.email);
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Invalid email or password');
     }
   }
 

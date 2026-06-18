@@ -46,14 +46,17 @@ form { padding: 20px 24px; }
 }
 
 .f-field select {
-  padding: 10px 13px; border: 1.5px solid #dde3ec; border-radius: 9px;
+  padding: 10px 36px 10px 13px; border: 1.5px solid #dde3ec; border-radius: 9px;
   font-size: 0.88rem; font-family: inherit; color: #0f172a; background-color: #fafbff;
-  outline: none; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center; background-size: 16px;
+  appearance: none; -webkit-appearance: none; outline: none; cursor: pointer;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .f-field input:hover, .f-field select:hover, .f-field textarea:hover { border-color: #c5cdd9; }
 .f-field input:focus, .f-field select:focus, .f-field textarea:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.12); background-color: #fff; }
+.f-field select:focus { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%234f46e5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); }
 .f-field input::placeholder, .f-field textarea::placeholder { color: #aab4c4; }
 .f-error { color: #dc2626; font-size: 0.76rem; }
 
@@ -97,12 +100,18 @@ form { padding: 20px 24px; }
 }
 
 .filters select {
-  padding: 9px 13px;
+  padding: 9px 36px 9px 13px;
   border: 1.5px solid #dde3ec;
   border-radius: 9px;
   font-size: 0.875rem;
   font-family: inherit;
   background-color: #fafbff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px;
+  appearance: none;
+  -webkit-appearance: none;
   color: #334155;
   outline: none;
   cursor: pointer;

@@ -4,7 +4,6 @@ import { BoardroomBlock } from '../boardroom-blocks/entities/boardroom-block.ent
 import { Boardroom } from '../boardrooms/entities/boardroom.entity';
 import { User } from '../users/entities/user.entity';
 import { Booking } from './entities/booking.entity';
-import { BookingAmenity } from './entities/booking-amenity.entity';
 import { BookingsService } from './services/bookings.service';
 import { BookingsController } from './controllers/bookings.controller';
 import { BookingReminderScheduler } from './schedulers/booking-reminder.scheduler';
@@ -14,7 +13,7 @@ import { SharedServicesModule } from '../../shared/services/shared-services.modu
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Booking, BookingAmenity, Boardroom, BoardroomBlock, User]),
+    TypeOrmModule.forFeature([Booking, Boardroom, BoardroomBlock, User]),
     NotificationsModule,
     AuditLogsModule,
     SharedServicesModule,

@@ -4,7 +4,6 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
 import { ConfirmationModalComponent, ConfirmationModalConfig } from '../../../shared/components/confirmation-modal/confirmation-modal.component';
-import { ModalComponent } from '../../../shared/components/modal/modal.component';
 import { ToastService } from '../../../core/services/toast.service';
 import { AuthService } from '../../auth/services/auth.service';
 import { AdminUser, RoleSummary } from '../models/user.model';
@@ -15,7 +14,7 @@ import { extractErrorMessage } from '../../../shared/utils/error.utils';
 @Component({
   selector: 'app-users-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, DatePipe, SpinnerComponent, ConfirmationModalComponent, ModalComponent],
+  imports: [CommonModule, ReactiveFormsModule, DatePipe, SpinnerComponent, ConfirmationModalComponent],
   templateUrl: './users.page.html',
   styleUrl: './users.page.css',
 })

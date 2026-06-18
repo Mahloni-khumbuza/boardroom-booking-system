@@ -264,63 +264,65 @@
 />
 
 <!-- ── User detail modal ──────────────────────────────────────────── -->
-<app-modal
-  [open]="!!viewingUser()"
-  [title]="viewingUser() ? fullName(viewingUser()!) : ''"
-  size="sm"
-  (closed)="viewingUser.set(null)"
->
-  @if (viewingUser(); as u) {
-    <div class="ud-header">
-      <div class="ud-avatar" [class]="'avatar-' + roleClass(u.role?.name)">{{ initials(u) }}</div>
-      <div class="ud-identity">
-        <div class="ud-name">
-          {{ fullName(u) }}
-          @if (u.id === currentUserId()) { <span class="you-chip">you</span> }
-        </div>
-        <div class="ud-email">{{ u.email }}</div>
-      </div>
-    </div>
+@if (viewingUser(); as u) {
+  <div class="ud-overlay" (click)="viewingUser.set(null)">
+    <div class="ud-modal" (click)="$event.stopPropagation()">
 
-    <div class="ud-body">
-      <div class="ud-row">
-        <span class="ud-label">Role</span>
-        <span class="role-pill" [class]="'role-' + roleClass(u.role?.name)">{{ u.role?.name || 'No role' }}</span>
-      </div>
-      <div class="ud-row">
-        <span class="ud-label">Status</span>
-        <span class="ud-status" [class.ud-active]="u.isActive" [class.ud-inactive]="!u.isActive">
-          {{ u.isActive ? 'Active' : 'Inactive' }}
-        </span>
-      </div>
-      @if (u.department) {
-        <div class="ud-row">
-          <span class="ud-label">Department</span>
-          <span>{{ u.department }}</span>
+      <div class="ud-header">
+        <div class="ud-avatar" [class]="'avatar-' + roleClass(u.role?.name)">{{ initials(u) }}</div>
+        <div class="ud-identity">
+          <div class="ud-name">
+            {{ fullName(u) }}
+            @if (u.id === currentUserId()) { <span class="you-chip">you</span> }
+          </div>
+          <div class="ud-email">{{ u.email }}</div>
         </div>
-      }
-      @if (u.jobTitle) {
-        <div class="ud-row">
-          <span class="ud-label">Job title</span>
-          <span>{{ u.jobTitle }}</span>
-        </div>
-      }
-      @if (u.phoneNumber) {
-        <div class="ud-row">
-          <span class="ud-label">Phone</span>
-          <span>{{ u.phoneNumber }}</span>
-        </div>
-      }
-      <div class="ud-row">
-        <span class="ud-label">Joined</span>
-        <span>{{ u.createdAt | date:'dd MMM yyyy' }}</span>
+        <button class="btn-close" (click)="viewingUser.set(null)" aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
       </div>
-    </div>
 
-    @if (canEdit()) {
-      <div class="ud-footer">
-        <button class="btn-save" (click)="openEdit(u); viewingUser.set(null)">Edit user</button>
+      <div class="ud-body">
+        <div class="ud-row">
+          <span class="ud-label">Role</span>
+          <span class="role-pill" [class]="'role-' + roleClass(u.role?.name)">{{ u.role?.name || 'No role' }}</span>
+        </div>
+        <div class="ud-row">
+          <span class="ud-label">Status</span>
+          <span class="ud-status" [class.ud-active]="u.isActive" [class.ud-inactive]="!u.isActive">
+            {{ u.isActive ? 'Active' : 'Inactive' }}
+          </span>
+        </div>
+        @if (u.department) {
+          <div class="ud-row">
+            <span class="ud-label">Department</span>
+            <span>{{ u.department }}</span>
+          </div>
+        }
+        @if (u.jobTitle) {
+          <div class="ud-row">
+            <span class="ud-label">Job title</span>
+            <span>{{ u.jobTitle }}</span>
+          </div>
+        }
+        @if (u.phoneNumber) {
+          <div class="ud-row">
+            <span class="ud-label">Phone</span>
+            <span>{{ u.phoneNumber }}</span>
+          </div>
+        }
+        <div class="ud-row">
+          <span class="ud-label">Joined</span>
+          <span>{{ u.createdAt | date:'dd MMM yyyy' }}</span>
+        </div>
       </div>
-    }
-  }
-</app-modal>
+
+      @if (canEdit()) {
+        <div class="ud-footer">
+          <button class="btn-save" (click)="openEdit(u); viewingUser.set(null)">Edit user</button>
+        </div>
+      }
+
+    </div>
+  </div>
+}
