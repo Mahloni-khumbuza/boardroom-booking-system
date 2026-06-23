@@ -2,8 +2,11 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
+  Inject,
 } from '@nestjs/common';
+import { Mapper } from '@automapper/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Role } from '../../roles/entities/role.entity';
@@ -21,76 +24,107 @@ export class UsersService {
     private readonly usersRepository: Repository<User>,
     @InjectRepository(Role)
     private readonly rolesRepository: Repository<Role>,
+    @Inject('automapper:nestjs:default') private readonly mapper: any,
   ) {}
 
   async findAll(): Promise<UserResponseDto[]> {
-    const users = await this.usersRepository.find({
-      order: { lastName: 'ASC', firstName: 'ASC' },
-      relations: { role: { permissions: true } },
-    });
-    return users.map(UserResponseDto.fromEntity);
+    try {
+      const users = await this.usersRepository.find({
+        order: { lastName: 'ASC', firstName: 'ASC' },
+        relations: { role: { permissions: true } },
+      });
+      return this.mapper.mapArray(users, User, UserResponseDto);
+    } catch (error) {
+      this.logger.error('Failed to fetch users', error);
+      throw error;
+    }
   }
 
   async findOne(id: string): Promise<UserResponseDto> {
-    return UserResponseDto.fromEntity(await this.findOneEntity(id));
+    try {
+      return this.mapper.map(await this.findOneEntity(id), User, UserResponseDto);
+    } catch (error) {
+      this.logger.error(`Failed to fetch user ${id}`, error);
+      throw error;
+    }
   }
 
   async createEmployee(dto: { email: string; password: string; firstName: string; lastName: string }): Promise<UserResponseDto> {
-    const employeeRole = await this.rolesRepository.findOne({ where: { name: 'Employee' } });
-    return this.create({
-      email: dto.email,
-      password: dto.password,
-      firstName: dto.firstName,
-      lastName: dto.lastName,
-      roleId: employeeRole?.id ?? undefined,
-      isActive: true,
-    });
+    try {
+      const employeeRole = await this.rolesRepository.findOne({ where: { name: 'Employee' } });
+      return this.create({
+        email: dto.email,
+        password: dto.password,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        roleId: employeeRole?.id ?? undefined,
+        isActive: true,
+      });
+    } catch (error) {
+      this.logger.error('Failed to create employee', error);
+      throw error;
+    }
   }
 
   async create(dto: CreateUserDto, _actor?: User): Promise<UserResponseDto> {
-    const existing = await this.usersRepository.findOne({ where: { email: dto.email } });
-    if (existing) throw new ConflictException(`Email "${dto.email}" is already registered`);
-    const role = dto.roleId ? await this.resolveRole(dto.roleId) : null;
-    const passwordHash = await import('bcrypt').then((b) => b.hash(dto.password, 10));
-    const user = this.usersRepository.create({
-      email: dto.email,
-      passwordHash,
-      firstName: dto.firstName,
-      lastName: dto.lastName,
-      phoneNumber: dto.phoneNumber ?? null,
-      department: dto.department ?? null,
-      jobTitle: dto.jobTitle ?? null,
-      isActive: dto.isActive ?? true,
-      role,
-      roleId: role?.id ?? null,
-    });
-    return UserResponseDto.fromEntity(await this.usersRepository.save(user));
+    try {
+      const existing = await this.usersRepository.findOne({ where: { email: dto.email } });
+      if (existing) throw new ConflictException(`Email "${dto.email}" is already registered`);
+      const role = dto.roleId ? await this.resolveRole(dto.roleId) : null;
+      const passwordHash = await import('bcrypt').then((b) => b.hash(dto.password, 10));
+      const user = this.usersRepository.create({
+        email: dto.email,
+        passwordHash,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        phoneNumber: dto.phoneNumber ?? null,
+        department: dto.department ?? null,
+        jobTitle: dto.jobTitle ?? null,
+        isActive: dto.isActive ?? true,
+        role,
+        roleId: role?.id ?? null,
+      });
+      return this.mapper.map(await this.usersRepository.save(user), User, UserResponseDto);
+    } catch (error) {
+      this.logger.error('Failed to create user', error);
+      throw error;
+    }
   }
 
   async update(id: string, dto: UpdateUserDto): Promise<UserResponseDto> {
-    const user = await this.findOneEntity(id);
-    if (dto.email !== undefined && dto.email !== user.email) {
-      const clash = await this.usersRepository.findOne({ where: { email: dto.email } });
-      if (clash) throw new ConflictException(`Email "${dto.email}" is already registered`);
-      user.email = dto.email;
+    try {
+      const user = await this.findOneEntity(id);
+      if (dto.email !== undefined && dto.email !== user.email) {
+        const clash = await this.usersRepository.findOne({ where: { email: dto.email } });
+        if (clash) throw new ConflictException(`Email "${dto.email}" is already registered`);
+        user.email = dto.email;
+      }
+      if (dto.firstName !== undefined) user.firstName = dto.firstName;
+      if (dto.lastName !== undefined) user.lastName = dto.lastName;
+      if (dto.phoneNumber !== undefined) user.phoneNumber = dto.phoneNumber ?? null;
+      if (dto.department !== undefined) user.department = dto.department ?? null;
+      if (dto.jobTitle !== undefined) user.jobTitle = dto.jobTitle ?? null;
+      if (dto.isActive !== undefined) user.isActive = dto.isActive;
+      if (dto.roleId !== undefined) {
+        const role = dto.roleId ? await this.resolveRole(dto.roleId) : null;
+        user.role = role;
+        user.roleId = role?.id ?? null;
+      }
+      return this.mapper.map(await this.usersRepository.save(user), User, UserResponseDto);
+    } catch (error) {
+      this.logger.error(`Failed to update user ${id}`, error);
+      throw error;
     }
-    if (dto.firstName !== undefined) user.firstName = dto.firstName;
-    if (dto.lastName !== undefined) user.lastName = dto.lastName;
-    if (dto.phoneNumber !== undefined) user.phoneNumber = dto.phoneNumber ?? null;
-    if (dto.department !== undefined) user.department = dto.department ?? null;
-    if (dto.jobTitle !== undefined) user.jobTitle = dto.jobTitle ?? null;
-    if (dto.isActive !== undefined) user.isActive = dto.isActive;
-    if (dto.roleId !== undefined) {
-      const role = dto.roleId ? await this.resolveRole(dto.roleId) : null;
-      user.role = role;
-      user.roleId = role?.id ?? null;
-    }
-    return UserResponseDto.fromEntity(await this.usersRepository.save(user));
   }
 
   async remove(id: string): Promise<void> {
-    const user = await this.findOneEntity(id);
-    await this.usersRepository.delete(user.id);
+    try {
+      const user = await this.findOneEntity(id);
+      await this.usersRepository.delete(user.id);
+    } catch (error) {
+      this.logger.error(`Failed to remove user ${id}`, error);
+      throw error;
+    }
   }
 
   findByEmail(email: string): Promise<User | null> {

@@ -166,7 +166,6 @@ export class BookingsController {
   }
 
   @Delete(':id')
-  @Roles(RoleName.ADMIN, RoleName.SUPER_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Permanently delete a cancelled booking', operationId: 'deleteBooking' })
   @ApiNoContentResponse()

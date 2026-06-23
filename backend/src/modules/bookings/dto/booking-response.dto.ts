@@ -1,175 +1,144 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { AutoMap } from '@automapper/classes';
 import { AmenityResponseDto } from '../../amenities/dto/amenity-response.dto';
-import { Booking, BookingStatus, MeetingType } from '../entities/booking.entity';
+import { BookingStatus, MeetingType } from '../entities/booking.entity';
 
 export class BookingBoardroomDto {
+  @AutoMap()
   @ApiProperty()
   id: string;
 
+  @AutoMap()
   @ApiProperty()
   name: string;
 
+  @AutoMap()
   @ApiProperty({ nullable: true })
   location: string | null;
 
+  @AutoMap()
   @ApiProperty()
   capacity: number;
 }
 
 export class BookingActorDto {
+  @AutoMap()
   @ApiProperty()
   id: string;
 
+  @AutoMap()
   @ApiProperty()
   email: string;
 
+  @AutoMap()
   @ApiProperty()
   firstName: string;
 
+  @AutoMap()
   @ApiProperty()
   lastName: string;
 }
 
 export class BookingResponseDto {
+  @AutoMap()
   @ApiProperty()
   id: string;
 
+  @AutoMap()
   @ApiProperty()
   title: string;
 
+  @AutoMap()
   @ApiProperty({ nullable: true })
   description: string | null;
 
+  @AutoMap()
   @ApiProperty()
   startDateTime: Date;
 
+  @AutoMap()
   @ApiProperty()
   endDateTime: Date;
 
+  @AutoMap()
   @ApiProperty()
   attendeeCount: number;
 
+  @AutoMap()
   @ApiProperty({ enum: BookingStatus })
   status: BookingStatus;
 
+  @AutoMap()
   @ApiProperty({ enum: MeetingType })
   meetingType: MeetingType;
 
+  @AutoMap()
   @ApiProperty()
   requiresCatering: boolean;
 
+  @AutoMap()
   @ApiProperty({ nullable: true })
   cateringNotes: string | null;
 
+  @AutoMap()
   @ApiProperty()
   requiresSetup: boolean;
 
+  @AutoMap()
   @ApiProperty({ nullable: true })
   setupNotes: string | null;
 
+  @AutoMap()
   @ApiProperty({ nullable: true })
   cancellationReason: string | null;
 
+  @AutoMap()
   @ApiProperty({ nullable: true })
   rejectionReason: string | null;
 
+  @AutoMap()
   @ApiProperty({ type: BookingBoardroomDto, nullable: true })
   boardroom: BookingBoardroomDto | null;
 
+  @AutoMap()
+  @ApiProperty({ nullable: true })
+  bookedByUserId: string | null;
+
+  @AutoMap()
   @ApiProperty({ type: BookingActorDto, nullable: true })
   bookedByUser: BookingActorDto | null;
 
+  @AutoMap()
   @ApiProperty({ type: BookingActorDto, nullable: true })
   approvedByUser: BookingActorDto | null;
 
+  @AutoMap()
   @ApiProperty({ nullable: true })
   approvedAt: Date | null;
 
+  @AutoMap()
   @ApiProperty({ nullable: true })
   cancelledAt: Date | null;
 
+  @AutoMap()
   @ApiProperty({ type: BookingActorDto, nullable: true })
   rejectedByUser: BookingActorDto | null;
 
+  @AutoMap()
   @ApiProperty({ nullable: true })
   rejectedAt: Date | null;
 
+  @AutoMap()
   @ApiProperty({ type: [AmenityResponseDto] })
   requestedAmenities: AmenityResponseDto[];
 
+  @AutoMap()
   @ApiProperty()
   createdAt: Date;
 
+  @AutoMap()
   @ApiProperty()
   updatedAt: Date;
-
-  static fromEntity(booking: Booking): BookingResponseDto {
-    const dto = new BookingResponseDto();
-    dto.id = booking.id;
-    dto.title = booking.title;
-    dto.description = booking.description;
-    dto.startDateTime = booking.startDateTime;
-    dto.endDateTime = booking.endDateTime;
-    dto.attendeeCount = booking.attendeeCount;
-    dto.status = booking.status;
-    dto.meetingType = booking.meetingType;
-    dto.requiresCatering = booking.requiresCatering;
-    dto.cateringNotes = booking.cateringNotes;
-    dto.requiresSetup = booking.requiresSetup;
-    dto.setupNotes = booking.setupNotes;
-    dto.cancellationReason = booking.cancellationReason;
-    dto.cancelledAt = booking.cancelledAt ?? null;
-    dto.rejectionReason = booking.rejectionReason;
-    dto.boardroom = booking.boardroom
-      ? {
-          id: booking.boardroom.id,
-          name: booking.boardroom.name,
-          location: booking.boardroom.location,
-          capacity: booking.boardroom.capacity,
-        }
-      : null;
-    dto.bookedByUser = booking.bookedByUser
-      ? {
-          id: booking.bookedByUser.id,
-          email: booking.bookedByUser.email,
-          firstName: booking.bookedByUser.firstName,
-          lastName: booking.bookedByUser.lastName,
-        }
-      : null;
-    dto.approvedByUser = booking.approvedByUser
-      ? {
-          id: booking.approvedByUser.id,
-          email: booking.approvedByUser.email,
-          firstName: booking.approvedByUser.firstName,
-          lastName: booking.approvedByUser.lastName,
-        }
-      : null;
-    dto.approvedAt = booking.approvedAt;
-    dto.rejectedByUser = booking.rejectedByUser
-      ? {
-          id: booking.rejectedByUser.id,
-          email: booking.rejectedByUser.email,
-          firstName: booking.rejectedByUser.firstName,
-          lastName: booking.rejectedByUser.lastName,
-        }
-      : null;
-    dto.rejectedAt = booking.rejectedAt;
-    dto.requestedAmenities = (booking.requestedAmenities ?? []).map((a) => ({
-      id: a.id,
-      name: a.name,
-      description: a.description,
-      icon: a.icon,
-      createdAt: a.createdAt,
-      updatedAt: a.updatedAt,
-    }));
-    dto.createdAt = booking.createdAt;
-    dto.updatedAt = booking.updatedAt;
-    return dto;
-  }
-
-  static collection(bookings: Booking[]): BookingResponseDto[] {
-    return bookings.map(BookingResponseDto.fromEntity);
-  }
 }
 
 export class CalendarEventResponseDto {

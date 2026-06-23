@@ -8,6 +8,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { AutoMap } from '@automapper/classes';
 import { User } from '../../users/entities/user.entity';
 
 export enum NotificationType {
@@ -32,18 +33,23 @@ export enum NotificationType {
 @Entity({ name: 'notifications' })
 @Index(['recipientId', 'isRead'])
 export class Notification {
+  @AutoMap()
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @AutoMap()
   @Column({ type: 'enum', enum: NotificationType, default: NotificationType.Info })
   type: NotificationType;
 
+  @AutoMap()
   @Column()
   title: string;
 
+  @AutoMap()
   @Column({ type: 'text' })
   message: string;
 
+  @AutoMap()
   @Column({ name: 'is_read', default: false })
   isRead: boolean;
 
@@ -51,12 +57,15 @@ export class Notification {
   @JoinColumn({ name: 'recipient_id' })
   recipient: User;
 
+  @AutoMap()
   @Column({ name: 'recipient_id' })
   recipientId: string;
 
+  @AutoMap()
   @CreateDateColumn()
   createdAt: Date;
 
+  @AutoMap()
   @UpdateDateColumn()
   updatedAt: Date;
 }

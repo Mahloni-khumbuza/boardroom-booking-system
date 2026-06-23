@@ -84,6 +84,21 @@ export class EnvironmentVariables {
   @IsOptional()
   SUPER_ADMIN_LAST_NAME: string = 'Admin';
 
+  // Redis / BullMQ (optional — defaults to localhost:6379)
+  @IsString()
+  @IsOptional()
+  REDIS_HOST?: string = 'localhost';
+
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  @IsOptional()
+  REDIS_PORT?: number = 6379;
+
+  @IsString()
+  @IsOptional()
+  REDIS_PASSWORD?: string;
+
   // Mail (all optional — system degrades gracefully when not configured)
   @IsString()
   @IsOptional()

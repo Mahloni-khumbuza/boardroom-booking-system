@@ -1,4 +1,5 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
+import { Mapper } from '@automapper/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuditLog } from '../entities/audit-log.entity';
@@ -22,6 +23,7 @@ export class AuditLogsService {
   constructor(
     @InjectRepository(AuditLog)
     private readonly repo: Repository<AuditLog>,
+    @Inject('automapper:nestjs:default') private readonly mapper: any,
   ) {}
 
   async record(input: RecordInput): Promise<void> {
@@ -64,7 +66,7 @@ export class AuditLogsService {
     const [items, total] = await qb.getManyAndCount();
 
     return {
-      items: items.map((log) => this.toDto(log)),
+      items: this.mapper.mapArray(items, AuditLog, AuditLogResponseDto),
       total,
       limit,
       offset,
@@ -74,25 +76,6 @@ export class AuditLogsService {
   async findOne(id: string): Promise<AuditLogResponseDto> {
     const log = await this.repo.findOne({ where: { id }, relations: { actor: true } });
     if (!log) throw new NotFoundException(`Audit log ${id} not found`);
-    return this.toDto(log);
-  }
-
-  private toDto(log: AuditLog): AuditLogResponseDto {
-    return {
-      id: log.id,
-      action: log.action,
-      entity: log.entity,
-      entityId: log.entityId,
-      metadata: log.metadata,
-      actor: log.actor
-        ? {
-            id: log.actor.id,
-            email: log.actor.email,
-            firstName: log.actor.firstName,
-            lastName: log.actor.lastName,
-          }
-        : null,
-      createdAt: log.createdAt,
-    };
+    return this.mapper.map(log, AuditLog, AuditLogResponseDto);
   }
 }

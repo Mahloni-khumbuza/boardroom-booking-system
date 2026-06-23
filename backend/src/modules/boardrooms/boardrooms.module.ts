@@ -8,11 +8,12 @@ import { Booking } from '../bookings/entities/booking.entity';
 import { Boardroom } from './entities/boardroom.entity';
 import { BoardroomsController } from './controllers/boardrooms.controller';
 import { BoardroomsService } from './services/boardrooms.service';
+import { BoardroomProfile } from './profiles/boardroom.profile';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Boardroom, Amenity, Booking, BoardroomBlock, AuditLog]), AuditLogsModule],
   controllers: [BoardroomsController],
-  providers: [BoardroomsService],
+  providers: [BoardroomsService, BoardroomProfile],
   exports: [BoardroomsService, TypeOrmModule],
 })
 export class BoardroomsModule {}

@@ -7,9 +7,12 @@ import { Booking } from './entities/booking.entity';
 import { BookingsService } from './services/bookings.service';
 import { BookingsController } from './controllers/bookings.controller';
 import { BookingReminderScheduler } from './schedulers/booking-reminder.scheduler';
+import { BookingExpiryScheduler } from './schedulers/booking-expiry.scheduler';
+import { BookingCompletionScheduler } from './schedulers/booking-completion.scheduler';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { AuditLogsModule } from '../audit-logs/audit-logs.module';
 import { SharedServicesModule } from '../../shared/services/shared-services.module';
+import { BookingProfile } from './profiles/booking.profile';
 
 @Module({
   imports: [
@@ -18,7 +21,7 @@ import { SharedServicesModule } from '../../shared/services/shared-services.modu
     AuditLogsModule,
     SharedServicesModule,
   ],
-  providers: [BookingsService, BookingReminderScheduler],
+  providers: [BookingsService, BookingReminderScheduler, BookingExpiryScheduler, BookingCompletionScheduler, BookingProfile],
   controllers: [BookingsController],
   exports: [BookingsService, TypeOrmModule],
 })

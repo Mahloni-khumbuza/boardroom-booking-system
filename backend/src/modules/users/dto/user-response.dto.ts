@@ -1,54 +1,49 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { AutoMap } from '@automapper/classes';
 import { RoleResponseDto } from '../../roles/dto/role-response.dto';
-import { User } from '../entities/user.entity';
 
 export class UserResponseDto {
+  @AutoMap()
   @ApiProperty()
   id: string;
 
+  @AutoMap()
   @ApiProperty({ example: 'mahloni91@gmail.com' })
   email: string;
 
+  @AutoMap()
   @ApiProperty({ example: 'Mahloni' })
   firstName: string;
 
+  @AutoMap()
   @ApiProperty({ example: 'Khumbuza' })
   lastName: string;
 
+  @AutoMap()
   @ApiProperty({ nullable: true })
   phoneNumber: string | null;
 
+  @AutoMap()
   @ApiProperty({ nullable: true })
   department: string | null;
 
+  @AutoMap()
   @ApiProperty({ nullable: true })
   jobTitle: string | null;
 
+  @AutoMap()
   @ApiProperty({ example: true })
   isActive: boolean;
 
+  @AutoMap()
   @ApiProperty({ type: RoleResponseDto, nullable: true })
   role: RoleResponseDto | null;
 
+  @AutoMap()
   @ApiProperty()
   createdAt: Date;
 
+  @AutoMap()
   @ApiProperty()
   updatedAt: Date;
-
-  static fromEntity(user: User): UserResponseDto {
-    const dto = new UserResponseDto();
-    dto.id = user.id;
-    dto.email = user.email;
-    dto.firstName = user.firstName;
-    dto.lastName = user.lastName;
-    dto.phoneNumber = user.phoneNumber ?? null;
-    dto.department = user.department ?? null;
-    dto.jobTitle = user.jobTitle ?? null;
-    dto.isActive = user.isActive;
-    dto.role = user.role ? RoleResponseDto.fromEntity(user.role) : null;
-    dto.createdAt = user.createdAt;
-    dto.updatedAt = user.updatedAt;
-    return dto;
-  }
 }

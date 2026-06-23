@@ -2,8 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, Repository } from 'typeorm';
-import { MailService } from '../../mail/mail.service';
-import { bookingReminderHtml } from '../../mail/mail-templates';
+import { MailQueueService } from '../../mail/services/mail-queue.service';
+import { bookingReminderHtml } from '../../mail/templates/mail-templates';
 import { NotificationType } from '../../notifications/entities/notification.entity';
 import { NotificationsService } from '../../notifications/services/notifications.service';
 import { SettingsCacheService } from '../../../shared/services/settings-cache.service';
@@ -19,7 +19,7 @@ export class BookingReminderScheduler {
     @InjectRepository(Booking)
     private readonly repo: Repository<Booking>,
     private readonly settings: SettingsCacheService,
-    private readonly mail: MailService,
+    private readonly mail: MailQueueService,
     private readonly notifications: NotificationsService,
   ) {}
 
@@ -54,7 +54,7 @@ export class BookingReminderScheduler {
         if (!booking.bookedByUser?.email) continue;
 
         try {
-          await this.mail.sendMail({
+          await this.mail.enqueue({
             to: booking.bookedByUser.email,
             subject: `Reminder: "${booking.title}" starts in ${reminderMinutes} minutes`,
             html: bookingReminderHtml({

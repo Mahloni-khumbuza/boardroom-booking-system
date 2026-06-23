@@ -8,6 +8,7 @@ import { User } from '../users/entities/user.entity';
 import { BoardroomBlock } from './entities/boardroom-block.entity';
 import { BoardroomBlocksController } from './controllers/boardroom-blocks.controller';
 import { BoardroomBlocksService } from './services/boardroom-blocks.service';
+import { BoardroomBlockProfile } from './profiles/boardroom-block.profile';
 
 @Module({
   imports: [
@@ -17,7 +18,7 @@ import { BoardroomBlocksService } from './services/boardroom-blocks.service';
     MailModule,
   ],
   controllers: [BoardroomBlocksController],
-  providers: [BoardroomBlocksService],
+  providers: [BoardroomBlocksService, BoardroomBlockProfile],
   exports: [TypeOrmModule, BoardroomBlocksService],
 })
 export class BoardroomBlocksModule {}

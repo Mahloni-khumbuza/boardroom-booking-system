@@ -1,8 +1,11 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { BullModule } from '@nestjs/bullmq';
+import { AutomapperModule } from '@automapper/nestjs';
+import { classes } from '@automapper/classes';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { validateEnv } from './config/env.validation';
@@ -30,6 +33,18 @@ import { LoggingInterceptor } from './shared/interceptors/logging.interceptor';
       cache: true,
       validate: validateEnv,
     }),
+    BullModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        connection: {
+          host: config.get<string>('REDIS_HOST', 'localhost'),
+          port: config.get<number>('REDIS_PORT', 6379),
+          password: config.get<string>('REDIS_PASSWORD') || undefined,
+        },
+        prefix: 'boardroom',
+      }),
+    }),
+    AutomapperModule.forRoot({ options: [{ name: 'mapper', pluginInitializer: classes }], singular: true }),
     ScheduleModule.forRoot(),
     DatabaseModule,
     MailModule,

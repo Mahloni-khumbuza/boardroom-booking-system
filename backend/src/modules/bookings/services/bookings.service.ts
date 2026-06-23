@@ -4,7 +4,9 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Inject,
 } from '@nestjs/common';
+import { Mapper } from '@automapper/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuditLogsService } from '../../audit-logs/services/audit-logs.service';
@@ -17,7 +19,7 @@ import { Booking, BookingStatus, MeetingType } from '../entities/booking.entity'
 import { BookingResponseDto, CalendarEventResponseDto } from '../dto/booking-response.dto';
 import { CreateBookingDto } from '../dto/create-booking.dto';
 import { UpdateBookingDto } from '../dto/update-booking.dto';
-import { MailService } from '../../mail/mail.service';
+import { MailQueueService } from '../../mail/services/mail-queue.service';
 import { SettingsCacheService } from '../../../shared/services/settings-cache.service';
 import {
   bookingCreatedHtml,
@@ -31,7 +33,7 @@ import {
   approvalRequestHtml,
   facilitiesRequestHtml,
   BookingEmailContext,
-} from '../../mail/mail-templates';
+} from '../../mail/templates/mail-templates';
 
 @Injectable()
 export class BookingsService {
@@ -49,7 +51,8 @@ export class BookingsService {
     private readonly notifications: NotificationsService,
     private readonly auditLogs: AuditLogsService,
     private readonly settings: SettingsCacheService,
-    private readonly mail: MailService,
+    private readonly mail: MailQueueService,
+    @Inject('automapper:nestjs:default') private readonly mapper: any,
   ) {}
 
   async create(dto: CreateBookingDto, user: User): Promise<BookingResponseDto> {
@@ -100,7 +103,7 @@ export class BookingsService {
     );
 
     if (room.requiresApproval) {
-      // §12: Booking requires approval → Admin + FM: approval request with room and time details
+      // Ã‚Â§12: Booking requires approval Ã¢â€ â€™ Admin + FM: approval request with room and time details
       await this.notifyAndEmailOperationalUsers(
         'Booking requires approval',
         `${user.firstName} ${user.lastName} requested ${room.name} on ${saved.startDateTime.toLocaleDateString('en-ZA')}.`,
@@ -118,7 +121,7 @@ export class BookingsService {
       );
     }
 
-    // §12: Setup or catering required → Facilities Manager only: operational task details
+    // Ã‚Â§12: Setup or catering required Ã¢â€ â€™ Facilities Manager only: operational task details
     await this.notifyFacilitiesRequests(saved);
     await this.auditLogs.record({
       action: 'BOOKING_CREATED',
@@ -127,7 +130,7 @@ export class BookingsService {
       actorId: user.id,
       after: this.safeBooking(saved),
     });
-    return BookingResponseDto.fromEntity(saved);
+    return this.mapper.map(saved, Booking, BookingResponseDto);
   }
 
   private async validateBookingBasics(
@@ -230,11 +233,11 @@ export class BookingsService {
       relations: { boardroom: true, bookedByUser: true, requestedAmenities: true },
       order: { startDateTime: 'DESC' },
     });
-    return BookingResponseDto.collection(bookings);
+    return this.mapper.mapArray(bookings, Booking, BookingResponseDto);
   }
 
   async findAll(query: Record<string, string> = {}): Promise<BookingResponseDto[]> {
-    return BookingResponseDto.collection(await this.findAllEntities(query));
+    return this.mapper.mapArray(await this.findAllEntities(query), Booking, BookingResponseDto);
   }
 
   private async findAllEntities(query: Record<string, string> = {}): Promise<Booking[]> {
@@ -310,7 +313,7 @@ export class BookingsService {
   }
 
   async findOne(id: string): Promise<BookingResponseDto> {
-    return BookingResponseDto.fromEntity(await this.findOneEntity(id));
+    return this.mapper.map(await this.findOneEntity(id), Booking, BookingResponseDto);
   }
 
   private async findOneEntity(id: string): Promise<Booking> {
@@ -369,7 +372,7 @@ export class BookingsService {
     if (room.requiresApproval) booking.status = BookingStatus.PENDING_APPROVAL;
 
     const saved = await this.bookings.save(booking);
-    // §12: Booking updated → Booker: change summary
+    // Ã‚Â§12: Booking updated Ã¢â€ â€™ Booker: change summary
     if (saved.bookedByUser) {
       await this.notifications.notify({
         recipientId: saved.bookedByUser.id,
@@ -379,7 +382,7 @@ export class BookingsService {
       });
       this.sendBookingEmail(saved.bookedByUser, `Booking updated: ${saved.title}`, bookingUpdatedHtml(this.buildEmailCtx(saved)));
     }
-    // §12: Booking updated → relevant admins: change summary
+    // Ã‚Â§12: Booking updated Ã¢â€ â€™ relevant admins: change summary
     const changedBy = `${user.firstName} ${user.lastName}`;
     await this.notifyAndEmailOperationalUsers(
       'Booking updated',
@@ -395,7 +398,7 @@ export class BookingsService {
       }),
       `Booking updated: ${saved.title}`,
     );
-    // §12: Setup or catering required → FM: operational task details
+    // Ã‚Â§12: Setup or catering required Ã¢â€ â€™ FM: operational task details
     await this.notifyFacilitiesRequests(saved);
     await this.auditLogs.record({
       action: 'BOOKING_UPDATED',
@@ -405,7 +408,7 @@ export class BookingsService {
       before,
       after: this.safeBooking(saved),
     });
-    return BookingResponseDto.fromEntity(saved);
+    return this.mapper.map(saved, Booking, BookingResponseDto);
   }
 
   async approve(id: string, user: User): Promise<BookingResponseDto> {
@@ -426,9 +429,10 @@ export class BookingsService {
     booking.approvedByUser = user;
     booking.approvedByUserId = user.id;
     booking.approvedAt = new Date();
-    const saved = await this.bookings.save(booking);
+    await this.bookings.save(booking);
+    const saved = await this.findOneEntity(booking.id);
     if (saved.bookedByUser) {
-      // §12: Booking approved → Booker: confirmation that booking is approved
+      // Ã‚Â§12: Booking approved Ã¢â€ â€™ Booker: confirmation that booking is approved
       await this.notifications.notify({
         recipientId: saved.bookedByUser.id,
         title: 'Booking approved',
@@ -436,6 +440,13 @@ export class BookingsService {
         type: NotificationType.BookingApproved,
       });
       this.sendBookingEmail(saved.bookedByUser, `Booking confirmed: ${saved.title}`, bookingConfirmedHtml(this.buildEmailCtx(saved)));
+    } else if (saved.bookedByUserId) {
+      await this.notifications.notify({
+        recipientId: saved.bookedByUserId,
+        title: 'Booking approved',
+        message: `Your booking "${saved.title}" has been approved and confirmed.`,
+        type: NotificationType.BookingApproved,
+      });
     }
     await this.auditLogs.record({
       action: 'BOOKING_APPROVED',
@@ -445,7 +456,7 @@ export class BookingsService {
       before,
       after: this.safeBooking(saved),
     });
-    return BookingResponseDto.fromEntity(saved);
+    return this.mapper.map(saved, Booking, BookingResponseDto);
   }
 
   async reject(id: string, user: User, reason: string): Promise<BookingResponseDto> {
@@ -467,9 +478,10 @@ export class BookingsService {
     booking.rejectedByUserId = user.id;
     booking.rejectionReason = reason;
     booking.rejectedAt = new Date();
-    const saved = await this.bookings.save(booking);
+    await this.bookings.save(booking);
+    const saved = await this.findOneEntity(booking.id);
     if (saved.bookedByUser) {
-      // §12: Booking rejected → Booker: rejection notice with reason
+      // Ã‚Â§12: Booking rejected Ã¢â€ â€™ Booker: rejection notice with reason
       await this.notifications.notify({
         recipientId: saved.bookedByUser.id,
         title: 'Booking rejected',
@@ -477,6 +489,13 @@ export class BookingsService {
         type: NotificationType.BookingRejected,
       });
       this.sendBookingEmail(saved.bookedByUser, `Booking rejected: ${saved.title}`, bookingRejectedHtml(this.buildEmailCtx(saved)));
+    } else if (saved.bookedByUserId) {
+      await this.notifications.notify({
+        recipientId: saved.bookedByUserId,
+        title: 'Booking rejected',
+        message: `Your booking "${saved.title}" was rejected. Reason: ${reason}`,
+        type: NotificationType.BookingRejected,
+      });
     }
     await this.auditLogs.record({
       action: 'BOOKING_REJECTED',
@@ -486,7 +505,7 @@ export class BookingsService {
       before,
       after: this.safeBooking(saved),
     });
-    return BookingResponseDto.fromEntity(saved);
+    return this.mapper.map(saved, Booking, BookingResponseDto);
   }
 
   async cancel(id: string, user: User, reason?: string): Promise<BookingResponseDto> {
@@ -501,11 +520,12 @@ export class BookingsService {
     booking.status = BookingStatus.CANCELLED;
     booking.cancellationReason = reason ?? 'Cancelled';
     booking.cancelledAt = new Date();
-    const saved = await this.bookings.save(booking);
+    await this.bookings.save(booking);
+    const saved = await this.findOneEntity(booking.id);
     const cancelledByName = `${user.firstName} ${user.lastName}`;
-    const cancelReason = booking.cancellationReason ?? 'No reason provided';
+    const cancelReason = saved.cancellationReason ?? 'No reason provided';
 
-    // §12: Booking cancelled → Booker: cancellation notice with reason
+    // Ã‚Â§12: Booking cancelled Ã¢â€ â€™ Booker: cancellation notice with reason
     if (saved.bookedByUser) {
       await this.notifications.notify({
         recipientId: saved.bookedByUser.id,
@@ -514,8 +534,15 @@ export class BookingsService {
         type: NotificationType.BookingCancelled,
       });
       this.sendBookingEmail(saved.bookedByUser, `Booking cancelled: ${saved.title}`, bookingCancelledHtml(this.buildEmailCtx(saved)));
+    } else if (saved.bookedByUserId) {
+      await this.notifications.notify({
+        recipientId: saved.bookedByUserId,
+        title: 'Booking cancelled',
+        message: `Your booking "${saved.title}" was cancelled. ${cancelReason !== 'Cancelled' ? `Reason: ${cancelReason}` : ''}`.trim(),
+        type: NotificationType.BookingCancelled,
+      });
     }
-    // §12: Booking cancelled → relevant admins: cancellation notice with reason
+    // Ã‚Â§12: Booking cancelled Ã¢â€ â€™ relevant admins: cancellation notice with reason
     await this.notifyAndEmailOperationalUsers(
       'Booking cancelled',
       `"${saved.title}" in ${saved.boardroom?.name ?? 'a room'} was cancelled by ${cancelledByName}. Reason: ${cancelReason}`,
@@ -535,7 +562,7 @@ export class BookingsService {
       before,
       after: this.safeBooking(saved),
     });
-    return BookingResponseDto.fromEntity(saved);
+    return this.mapper.map(saved, Booking, BookingResponseDto);
   }
 
   async complete(id: string, user?: User): Promise<BookingResponseDto> {
@@ -554,7 +581,7 @@ export class BookingsService {
       before,
       after: this.safeBooking(saved),
     });
-    return BookingResponseDto.fromEntity(saved);
+    return this.mapper.map(saved, Booking, BookingResponseDto);
   }
 
   async noShow(id: string, user?: User): Promise<BookingResponseDto> {
@@ -573,11 +600,14 @@ export class BookingsService {
       before,
       after: this.safeBooking(saved),
     });
-    return BookingResponseDto.fromEntity(saved);
+    return this.mapper.map(saved, Booking, BookingResponseDto);
   }
 
   async remove(id: string, user: User): Promise<void> {
     const booking = await this.findOneEntity(id);
+    if (user.role?.name === 'Employee' && booking.bookedByUserId !== user.id) {
+      throw new ForbiddenException('You can only delete your own bookings');
+    }
     if (booking.status !== BookingStatus.CANCELLED && booking.status !== BookingStatus.REJECTED) {
       throw new BadRequestException('Only cancelled or rejected bookings can be permanently deleted');
     }
@@ -634,7 +664,10 @@ export class BookingsService {
           }),
         );
         sent += 1;
-      } catch {
+      } catch (err) {
+        this.logger.warn(
+          `Failed to process reminder for booking ${booking.id}: ${err instanceof Error ? err.message : String(err)}`,
+        );
         failed += 1;
       }
     }
@@ -642,11 +675,9 @@ export class BookingsService {
     return { windowMinutes, sent, failed, skipped };
   }
 
-  // Fire-and-forget: email sends must not block the API response.
-  // The MailService handles retries and records failures to the audit log internally.
   private sendBookingEmail(recipient: User, subject: string, html: string): void {
     if (!recipient?.email) return;
-    void this.mail.sendMail({ to: recipient.email, subject, html });
+    void this.mail.enqueue({ to: recipient.email, subject, html });
   }
 
   private buildEmailCtx(booking: Booking): BookingEmailContext {
@@ -662,7 +693,7 @@ export class BookingsService {
     };
   }
 
-  // §12: Generic: in-app + email to Admin, SuperAdmin, FacilitiesManager
+  // Ã‚Â§12: Generic: in-app + email to Admin, SuperAdmin, FacilitiesManager
   private async notifyAndEmailOperationalUsers(
     title: string,
     message: string,
@@ -683,7 +714,7 @@ export class BookingsService {
     }
   }
 
-  // §12: Setup or catering required → Facilities Manager only (not Admin/SuperAdmin)
+  // Ã‚Â§12: Setup or catering required Ã¢â€ â€™ Facilities Manager only (not Admin/SuperAdmin)
   private async notifyFacilitiesRequests(booking: Booking): Promise<void> {
     if (!booking.requiresCatering && !booking.requiresSetup) return;
 

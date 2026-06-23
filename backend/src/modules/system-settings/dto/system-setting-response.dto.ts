@@ -1,37 +1,28 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { SystemSetting } from '../entities/system-setting.entity';
+import { AutoMap } from '@automapper/classes';
 
 export class SystemSettingResponseDto {
+  @AutoMap()
   @ApiProperty()
   id: string;
 
+  @AutoMap()
   @ApiProperty({ example: 'booking.max_advance_days' })
   key: string;
 
+  @AutoMap()
   @ApiProperty({ nullable: true, example: '30' })
   value: string | null;
 
+  @AutoMap()
   @ApiProperty({ nullable: true })
   description: string | null;
 
+  @AutoMap()
   @ApiProperty()
   createdAt: Date;
 
+  @AutoMap()
   @ApiProperty()
   updatedAt: Date;
-
-  static fromEntity(setting: SystemSetting): SystemSettingResponseDto {
-    const dto = new SystemSettingResponseDto();
-    dto.id = setting.id;
-    dto.key = setting.key;
-    dto.value = setting.value;
-    dto.description = setting.description;
-    dto.createdAt = setting.createdAt;
-    dto.updatedAt = setting.updatedAt;
-    return dto;
-  }
-
-  static collection(settings: SystemSetting[]): SystemSettingResponseDto[] {
-    return settings.map(SystemSettingResponseDto.fromEntity);
-  }
 }

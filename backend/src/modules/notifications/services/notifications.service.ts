@@ -1,15 +1,12 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification, NotificationType } from '../entities/notification.entity';
+import { NotificationResponseDto } from '../dto/notification-response.dto';
 import { CreateNotificationDto } from '../dto/create-notification.dto';
+import { NotifyInput } from '../dto/notify-input.dto';
 
-export interface NotifyInput {
-  recipientId: string;
-  title: string;
-  message: string;
-  type?: NotificationType;
-}
+export type { NotifyInput };
 
 @Injectable()
 export class NotificationsService {
@@ -18,17 +15,19 @@ export class NotificationsService {
   constructor(
     @InjectRepository(Notification)
     private readonly repo: Repository<Notification>,
+    @Inject('automapper:nestjs:default') private readonly mapper: any,
   ) {}
 
-  async listForUser(userId: string): Promise<Notification[]> {
-    return this.repo.find({ where: { recipientId: userId }, order: { createdAt: 'DESC' }, take: 100 });
+  async listForUser(userId: string): Promise<NotificationResponseDto[]> {
+    const results = await this.repo.find({ where: { recipientId: userId }, order: { createdAt: 'DESC' }, take: 100 });
+    return this.mapper.mapArray(results, Notification, NotificationResponseDto);
   }
 
   async countUnreadForUser(userId: string): Promise<number> {
     return this.repo.count({ where: { recipientId: userId, isRead: false } });
   }
 
-  async create(dto: CreateNotificationDto): Promise<Notification> {
+  async create(dto: CreateNotificationDto): Promise<NotificationResponseDto> {
     const entry = this.repo.create({
       type: dto.type ?? NotificationType.Info,
       title: dto.title,
@@ -36,7 +35,7 @@ export class NotificationsService {
       recipientId: dto.recipientId,
       isRead: false,
     });
-    return this.repo.save(entry);
+    return this.mapper.map(await this.repo.save(entry), Notification, NotificationResponseDto);
   }
 
   async notify(input: NotifyInput): Promise<Notification | null> {
@@ -59,11 +58,11 @@ export class NotificationsService {
     }
   }
 
-  async markRead(id: string, userId: string): Promise<Notification> {
+  async markRead(id: string, userId: string): Promise<NotificationResponseDto> {
     const note = await this.repo.findOne({ where: { id, recipientId: userId } });
     if (!note) throw new NotFoundException(`Notification ${id} not found`);
     note.isRead = true;
-    return this.repo.save(note);
+    return this.mapper.map(await this.repo.save(note), Notification, NotificationResponseDto);
   }
 
   async markAllRead(userId: string): Promise<{ updated: number }> {

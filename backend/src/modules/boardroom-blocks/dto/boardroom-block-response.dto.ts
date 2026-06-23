@@ -1,76 +1,68 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { BoardroomBlock } from '../entities/boardroom-block.entity';
+import { AutoMap } from '@automapper/classes';
 
 export class BlockBoardroomDto {
+  @AutoMap()
   @ApiProperty()
   id: string;
 
+  @AutoMap()
   @ApiProperty()
   name: string;
 }
 
 export class BlockUserDto {
+  @AutoMap()
   @ApiProperty()
   id: string;
 
+  @AutoMap()
   @ApiProperty()
   firstName: string;
 
+  @AutoMap()
   @ApiProperty()
   lastName: string;
 }
 
 export class BoardroomBlockResponseDto {
+  @AutoMap()
   @ApiProperty()
   id: string;
 
+  @AutoMap()
   @ApiProperty({ type: BlockBoardroomDto, nullable: true })
   boardroom: BlockBoardroomDto | null;
 
+  @AutoMap()
   @ApiProperty()
   startTime: Date;
 
+  @AutoMap()
   @ApiProperty()
   endTime: Date;
 
+  @AutoMap()
   @ApiProperty()
   reason: string;
 
+  @AutoMap()
   @ApiProperty()
   isActive: boolean;
 
+  @AutoMap()
   @ApiProperty({ type: BlockUserDto, nullable: true })
   createdBy: BlockUserDto | null;
 
+  @AutoMap()
   @ApiProperty({ nullable: true })
   createdById: string | null;
 
+  @AutoMap()
   @ApiProperty()
   createdAt: Date;
 
+  @AutoMap()
   @ApiProperty()
   updatedAt: Date;
-
-  static fromEntity(block: BoardroomBlock): BoardroomBlockResponseDto {
-    const dto = new BoardroomBlockResponseDto();
-    dto.id = block.id;
-    dto.boardroom = block.boardroom
-      ? { id: block.boardroom.id, name: block.boardroom.name }
-      : null;
-    dto.startTime = block.startTime;
-    dto.endTime = block.endTime;
-    dto.reason = block.reason;
-    dto.isActive = block.isActive;
-    dto.createdBy = block.createdBy
-      ? { id: block.createdBy.id, firstName: block.createdBy.firstName, lastName: block.createdBy.lastName }
-      : null;
-    dto.createdById = block.createdById;
-    dto.createdAt = block.createdAt;
-    dto.updatedAt = block.updatedAt;
-    return dto;
-  }
-
-  static collection(blocks: BoardroomBlock[]): BoardroomBlockResponseDto[] {
-    return blocks.map(BoardroomBlockResponseDto.fromEntity);
-  }
 }
