@@ -17,10 +17,16 @@ export function PrimaryButton({ label, isLoading = false, disabled, style, ...re
   const isDisabled = disabled || isLoading;
   return (
     <TouchableOpacity
-      {...rest}
-      disabled={isDisabled}
-      style={[styles.button, isDisabled && styles.disabled, style]}
-      activeOpacity={0.8}
+    {...rest}
+    disabled={isDisabled}
+    accessibilityRole="button"
+    accessibilityLabel={label}
+    accessibilityState={{
+      disabled: isDisabled,
+      busy: isLoading,
+    }}
+    style={[styles.button, isDisabled && styles.disabled, style]}
+    activeOpacity={0.8}
     >
       {isLoading ? (
         <ActivityIndicator color={colors.text.inverse} size="small" />
