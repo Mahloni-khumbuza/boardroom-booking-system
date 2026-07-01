@@ -90,20 +90,18 @@ export class FcmPushService implements OnModuleInit {
     data: Record<string, string>,
   ): Promise<void> {
     try {
+      // Use data-only payload so the service worker controls display
+      // in both foreground and background (no native FCM notification UI)
       const message: MulticastMessage = {
         tokens,
-        notification: { title, body },
         webpush: {
-          notification: {
-            title,
-            body,
-            icon: '/icons/icon-192x192.png',
-            badge: '/icons/badge-72x72.png',
-            requireInteraction: false,
-          },
-          fcmOptions: { link: '/' },
+          headers: { Urgency: 'high' },
         },
-        data,
+        data: {
+          ...data,
+          title,
+          body,
+        },
       };
 
       const messaging = getMessaging(this.app!);
