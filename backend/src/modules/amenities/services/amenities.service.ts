@@ -1,5 +1,4 @@
-import { ConflictException, Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
-import { Mapper } from '@automapper/core';
+import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Amenity } from '../entities/amenity.entity';
@@ -14,13 +13,23 @@ export class AmenitiesService {
   constructor(
     @InjectRepository(Amenity)
     private readonly amenitiesRepository: Repository<Amenity>,
-    @Inject('automapper:nestjs:default') private readonly mapper: any,
   ) {}
+
+  private toDto(amenity: Amenity): AmenityResponseDto {
+    const dto = new AmenityResponseDto();
+    dto.id = amenity.id;
+    dto.name = amenity.name;
+    dto.description = amenity.description;
+    dto.icon = amenity.icon;
+    dto.createdAt = amenity.createdAt;
+    dto.updatedAt = amenity.updatedAt;
+    return dto;
+  }
 
   async findAll(): Promise<AmenityResponseDto[]> {
     try {
       const amenities = await this.amenitiesRepository.find({ order: { name: 'ASC' } });
-      return this.mapper.mapArray(amenities, Amenity, AmenityResponseDto);
+      return amenities.map(e => this.toDto(e));
     } catch (error) {
       this.logger.error('Failed to fetch amenities', error);
       throw error;
@@ -31,7 +40,7 @@ export class AmenitiesService {
     try {
       const amenity = await this.amenitiesRepository.findOne({ where: { id } });
       if (!amenity) throw new NotFoundException(`Amenity ${id} not found`);
-      return this.mapper.map(amenity, Amenity, AmenityResponseDto);
+      return this.toDto(amenity);
     } catch (error) {
       this.logger.error(`Failed to fetch amenity ${id}`, error);
       throw error;
@@ -47,7 +56,7 @@ export class AmenitiesService {
         description: dto.description ?? null,
         icon: dto.icon ?? null,
       });
-      return this.mapper.map(await this.amenitiesRepository.save(amenity), Amenity, AmenityResponseDto);
+      return this.toDto(await this.amenitiesRepository.save(amenity));
     } catch (error) {
       this.logger.error('Failed to create amenity', error);
       throw error;
@@ -65,7 +74,7 @@ export class AmenitiesService {
       }
       if (dto.description !== undefined) amenity.description = dto.description;
       if (dto.icon !== undefined) amenity.icon = dto.icon;
-      return this.mapper.map(await this.amenitiesRepository.save(amenity), Amenity, AmenityResponseDto);
+      return this.toDto(await this.amenitiesRepository.save(amenity));
     } catch (error) {
       this.logger.error(`Failed to update amenity ${id}`, error);
       throw error;

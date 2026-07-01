@@ -3,9 +3,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  Inject,
 } from '@nestjs/common';
-import { Mapper } from '@automapper/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Between, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
 import { AuditLogsService } from '../../audit-logs/services/audit-logs.service';
@@ -16,7 +14,7 @@ import { Boardroom } from '../../boardrooms/entities/boardroom.entity';
 import { User } from '../../users/entities/user.entity';
 import { roomBlockedHtml } from '../../mail/templates/mail-templates';
 import { BoardroomBlock } from '../entities/boardroom-block.entity';
-import { BoardroomBlockResponseDto } from '../dto/boardroom-block-response.dto';
+import { BoardroomBlockResponseDto, BlockBoardroomDto, BlockUserDto } from '../dto/boardroom-block-response.dto';
 import { BoardroomBlockQueryDto } from '../dto/boardroom-block-query.dto';
 import { CreateBoardroomBlockDto } from '../dto/create-boardroom-block.dto';
 import { UpdateBoardroomBlockDto } from '../dto/update-boardroom-block.dto';
@@ -35,7 +33,6 @@ export class BoardroomBlocksService {
     private readonly auditLogs: AuditLogsService,
     private readonly notifications: NotificationsService,
     private readonly mail: MailQueueService,
-    @Inject('automapper:nestjs:default') private readonly mapper: any,
   ) {}
 
   async findAll(query: BoardroomBlockQueryDto = {}): Promise<BoardroomBlockResponseDto[]> {
@@ -55,7 +52,7 @@ export class BoardroomBlocksService {
         order: { startTime: 'ASC' },
         take: 500,
       });
-      return this.mapper.mapArray(blocks, BoardroomBlock, BoardroomBlockResponseDto);
+      return blocks.map(e => this.toDto(e));
     } catch (error) {
       this.logger.error('Failed to fetch boardroom blocks', error);
       throw error;
@@ -64,7 +61,7 @@ export class BoardroomBlocksService {
 
   async findOne(id: string): Promise<BoardroomBlockResponseDto> {
     try {
-      return this.mapper.map(await this.findOneEntity(id), BoardroomBlock, BoardroomBlockResponseDto);
+      return this.toDto(await this.findOneEntity(id));
     } catch (error) {
       this.logger.error(`Failed to fetch boardroom block ${id}`, error);
       throw error;
@@ -102,7 +99,7 @@ export class BoardroomBlocksService {
 
       await this.notifyRoomBlocked(boardroom, saved, actorId);
 
-      return this.mapper.map(await this.findOneEntity(saved.id), BoardroomBlock, BoardroomBlockResponseDto);
+      return this.toDto(await this.findOneEntity(saved.id));
     } catch (error) {
       this.logger.error('Failed to create boardroom block', error);
       throw error;
@@ -130,7 +127,7 @@ export class BoardroomBlocksService {
         before,
         after: { reason: block.reason, startTime: block.startTime, endTime: block.endTime, isActive: block.isActive },
       });
-      return this.mapper.map(await this.findOneEntity(id), BoardroomBlock, BoardroomBlockResponseDto);
+      return this.toDto(await this.findOneEntity(id));
     } catch (error) {
       this.logger.error(`Failed to update boardroom block ${id}`, error);
       throw error;
@@ -140,11 +137,11 @@ export class BoardroomBlocksService {
   async activate(id: string, actorId: string): Promise<BoardroomBlockResponseDto> {
     try {
       const block = await this.findOneEntity(id);
-      if (block.isActive) return this.mapper.map(block, BoardroomBlock, BoardroomBlockResponseDto);
+      if (block.isActive) return this.toDto(block);
       block.isActive = true;
       await this.repo.save(block);
       await this.auditLogs.record({ action: 'boardroom_block.activated', entity: 'boardroom_block', entityId: id, actorId });
-      return this.mapper.map(await this.findOneEntity(id), BoardroomBlock, BoardroomBlockResponseDto);
+      return this.toDto(await this.findOneEntity(id));
     } catch (error) {
       this.logger.error(`Failed to activate boardroom block ${id}`, error);
       throw error;
@@ -154,11 +151,11 @@ export class BoardroomBlocksService {
   async deactivate(id: string, actorId: string): Promise<BoardroomBlockResponseDto> {
     try {
       const block = await this.findOneEntity(id);
-      if (!block.isActive) return this.mapper.map(block, BoardroomBlock, BoardroomBlockResponseDto);
+      if (!block.isActive) return this.toDto(block);
       block.isActive = false;
       await this.repo.save(block);
       await this.auditLogs.record({ action: 'boardroom_block.deactivated', entity: 'boardroom_block', entityId: id, actorId });
-      return this.mapper.map(await this.findOneEntity(id), BoardroomBlock, BoardroomBlockResponseDto);
+      return this.toDto(await this.findOneEntity(id));
     } catch (error) {
       this.logger.error(`Failed to deactivate boardroom block ${id}`, error);
       throw error;
@@ -191,7 +188,7 @@ export class BoardroomBlocksService {
       .getOne();
   }
 
-  // Ã‚Â§12: Room blocked Ã¢â€ â€™ notify Admins + FacilitiesManagers (in-app + email)
+  // §12: Room blocked → notify Admins + FacilitiesManagers (in-app + email)
   private async notifyRoomBlocked(boardroom: Boardroom, block: BoardroomBlock, actorId: string): Promise<void> {
     const actor = await this.usersRepo.findOne({ where: { id: actorId } });
     const blockedByName = actor ? `${actor.firstName} ${actor.lastName}` : 'Facilities';
@@ -234,5 +231,38 @@ export class BoardroomBlocksService {
     const block = await this.repo.findOne({ where: { id }, relations: { boardroom: true, createdBy: true } });
     if (!block) throw new NotFoundException(`Block ${id} not found`);
     return block;
+  }
+
+  private toDto(entity: BoardroomBlock): BoardroomBlockResponseDto {
+    const dto = new BoardroomBlockResponseDto();
+    dto.id = entity.id;
+    dto.startTime = entity.startTime;
+    dto.endTime = entity.endTime;
+    dto.reason = entity.reason;
+    dto.isActive = entity.isActive;
+    dto.createdById = entity.createdById;
+    dto.createdAt = entity.createdAt;
+    dto.updatedAt = entity.updatedAt;
+
+    if (entity.boardroom) {
+      const boardroomDto = new BlockBoardroomDto();
+      boardroomDto.id = entity.boardroom.id;
+      boardroomDto.name = entity.boardroom.name;
+      dto.boardroom = boardroomDto;
+    } else {
+      dto.boardroom = null;
+    }
+
+    if (entity.createdBy) {
+      const userDto = new BlockUserDto();
+      userDto.id = entity.createdBy.id;
+      userDto.firstName = entity.createdBy.firstName;
+      userDto.lastName = entity.createdBy.lastName;
+      dto.createdBy = userDto;
+    } else {
+      dto.createdBy = null;
+    }
+
+    return dto;
   }
 }

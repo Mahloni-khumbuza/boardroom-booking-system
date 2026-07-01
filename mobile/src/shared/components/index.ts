@@ -9,3 +9,4 @@ export * from './feedback/ErrorState';
 export * from './modals/ConfirmationModal';
 export * from './modals/SuccessModal';
 export * from './modals/ErrorModal';
+export { ErrorBoundary } from './ErrorBoundary';

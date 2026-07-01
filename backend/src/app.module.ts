@@ -19,6 +19,7 @@ import { AmenitiesModule } from './modules/amenities/amenities.module';
 import { BookingsModule } from './modules/bookings/bookings.module';
 import { BoardroomBlocksModule } from './modules/boardroom-blocks/boardroom-blocks.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { PushTokensModule } from './modules/push-tokens/push-tokens.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { SystemSettingsModule } from './modules/system-settings/system-settings.module';
@@ -57,6 +58,7 @@ import { LoggingInterceptor } from './shared/interceptors/logging.interceptor';
     BookingsModule,
     BoardroomBlocksModule,
     NotificationsModule,
+    PushTokensModule,
     AuditLogsModule,
     DashboardModule,
     SystemSettingsModule,

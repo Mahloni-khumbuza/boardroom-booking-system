@@ -4,13 +4,14 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { ForgotPasswordScreenProps } from '../../../navigation/types';
 import { forgotPasswordSchema, type ForgotPasswordFormValues } from '../../../shared/utils/validation.utils';
-import { useForgotPasswordMutation } from '../../../api/auth.api';
-import { extractApiError } from '../../../api/error.utils';
-import { ScreenContainer } from '../../../shared/components/layout/ScreenContainer';
-import { TextInput }     from '../../../shared/components/inputs/TextInput';
-import { PrimaryButton } from '../../../shared/components/buttons/PrimaryButton';
-import { SuccessModal }  from '../../../shared/components/modals/SuccessModal';
-import { ErrorModal }    from '../../../shared/components/modals/ErrorModal';
+import { useForgotPasswordMutation, extractApiError } from '../../../api';
+import {
+  ScreenContainer,
+  TextInput,
+  PrimaryButton,
+  SuccessModal,
+  ErrorModal,
+} from '../../../shared';
 import { colors, spacing, typography } from '../../../design-system';
 
 export function ForgotPasswordScreen({ navigation }: ForgotPasswordScreenProps) {

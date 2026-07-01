@@ -1,5 +1,4 @@
-import { ConflictException, Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
-import { Mapper } from '@automapper/core';
+import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuditLogsService } from '../../audit-logs/services/audit-logs.service';
@@ -16,13 +15,23 @@ export class SystemSettingsService {
     @InjectRepository(SystemSetting)
     private readonly repo: Repository<SystemSetting>,
     private readonly auditLogs: AuditLogsService,
-    @Inject('automapper:nestjs:default') private readonly mapper: any,
   ) {}
+
+  private toDto(entity: SystemSetting): SystemSettingResponseDto {
+    const dto = new SystemSettingResponseDto();
+    dto.id = entity.id;
+    dto.key = entity.key;
+    dto.value = entity.value;
+    dto.description = entity.description;
+    dto.createdAt = entity.createdAt;
+    dto.updatedAt = entity.updatedAt;
+    return dto;
+  }
 
   async findAll(): Promise<SystemSettingResponseDto[]> {
     try {
       const settings = await this.repo.find({ order: { key: 'ASC' } });
-      return this.mapper.mapArray(settings, SystemSetting, SystemSettingResponseDto);
+      return settings.map(e => this.toDto(e));
     } catch (error) {
       this.logger.error('Failed to fetch system settings', error);
       throw error;
@@ -33,7 +42,7 @@ export class SystemSettingsService {
     try {
       const setting = await this.repo.findOne({ where: { id } });
       if (!setting) throw new NotFoundException(`Setting ${id} not found`);
-      return this.mapper.map(setting, SystemSetting, SystemSettingResponseDto);
+      return this.toDto(setting);
     } catch (error) {
       this.logger.error(`Failed to fetch setting ${id}`, error);
       throw error;
@@ -63,7 +72,7 @@ export class SystemSettingsService {
         actorId: actorId ?? null,
         after: { key: saved.key, value: saved.value },
       });
-      return this.mapper.map(saved, SystemSetting, SystemSettingResponseDto);
+      return this.toDto(saved);
     } catch (error) {
       this.logger.error('Failed to create system setting', error);
       throw error;
@@ -85,7 +94,7 @@ export class SystemSettingsService {
         before,
         after: { key: saved.key, value: saved.value },
       });
-      return this.mapper.map(saved, SystemSetting, SystemSettingResponseDto);
+      return this.toDto(saved);
     } catch (error) {
       this.logger.error(`Failed to update setting ${id}`, error);
       throw error;

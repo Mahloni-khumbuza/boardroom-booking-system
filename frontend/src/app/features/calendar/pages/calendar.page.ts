@@ -8,6 +8,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import { FullCalendarModule } from '@fullcalendar/angular';
 
 import { SpinnerComponent } from '../../../shared/components/spinner/spinner.component';
+import { ModalComponent } from '../../../shared/components/modal/modal.component';
 import { ConfirmationModalComponent, ConfirmationModalConfig } from '../../../shared/components/confirmation-modal/confirmation-modal.component';
 import { ToastService } from '../../../core/services/toast.service';
 import { AuthService } from '../../auth/services/auth.service';
@@ -31,7 +32,7 @@ interface SelectedBooking {
 @Component({
   selector: 'app-calendar-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, FullCalendarModule, SpinnerComponent, ConfirmationModalComponent],
+  imports: [CommonModule, FormsModule, FullCalendarModule, SpinnerComponent, ModalComponent, ConfirmationModalComponent],
   templateUrl: './calendar.page.html',
   styleUrl: './calendar.page.css',
 })

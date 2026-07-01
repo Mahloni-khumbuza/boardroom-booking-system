@@ -1,6 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
+import { WebPushService } from '../../../core/firebase/web-push.service';
 
 import { environment } from '../../../../environments/environment';
 import {
@@ -17,6 +18,7 @@ const USER_KEY = 'bbs.user';
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
+  private readonly webPush = inject(WebPushService);
 
   private readonly accessToken = signal<string | null>(
     typeof localStorage !== 'undefined' ? localStorage.getItem(ACCESS_TOKEN_KEY) : null
@@ -64,7 +66,10 @@ export class AuthService {
   login(payload: LoginRequest): Observable<LoginResponse> {
     return this.http
       .post<LoginResponse>(`${environment.apiBaseUrl}/auth/login`, payload)
-      .pipe(tap((res) => this.persistSession(res)));
+      .pipe(tap((res) => {
+        this.persistSession(res);
+        void this.webPush.init(res.user?.role ?? 'Employee');
+      }));
   }
 
   register(payload: RegisterRequest): Observable<RegisterResponse> {
@@ -74,6 +79,7 @@ export class AuthService {
   }
 
   logout(): void {
+    void this.webPush.unregister();
     this.accessToken.set(null);
     this.currentUser.set(null);
     if (typeof localStorage !== 'undefined') {

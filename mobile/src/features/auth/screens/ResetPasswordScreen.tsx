@@ -4,13 +4,14 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import type { ResetPasswordScreenProps } from '../../../navigation/types';
 import { resetPasswordSchema, type ResetPasswordFormValues } from '../../../shared/utils/validation.utils';
-import { useResetPasswordMutation } from '../../../api/auth.api';
-import { extractApiError } from '../../../api/error.utils';
-import { ScreenContainer } from '../../../shared/components/layout/ScreenContainer';
-import { PasswordInput } from '../../../shared/components/inputs/PasswordInput';
-import { PrimaryButton } from '../../../shared/components/buttons/PrimaryButton';
-import { SuccessModal }  from '../../../shared/components/modals/SuccessModal';
-import { ErrorModal }    from '../../../shared/components/modals/ErrorModal';
+import { useResetPasswordMutation, extractApiError } from '../../../api';
+import {
+  ScreenContainer,
+  PasswordInput,
+  PrimaryButton,
+  SuccessModal,
+  ErrorModal,
+} from '../../../shared';
 import { colors, spacing, typography } from '../../../design-system';
 
 export function ResetPasswordScreen({ route, navigation }: ResetPasswordScreenProps) {

@@ -1,13 +1,15 @@
 import React from 'react';
-import { Text } from 'react-native';
-import { ScreenContainer } from '../../../shared/components/layout/ScreenContainer';
-import { PageHeader }      from '../../../shared/components/layout/PageHeader';
+import { ScreenContainer, PageHeader, EmptyState } from '../../../shared';
 
 export function BoardroomsScreen() {
   return (
     <ScreenContainer>
       <PageHeader title="Boardrooms" subtitle="Available rooms" />
-      <Text>Boardrooms content coming soon.</Text>
+      <EmptyState
+        icon="business-outline"
+        title="Boardrooms coming soon"
+        message="Browse and search available boardrooms here."
+      />
     </ScreenContainer>
   );
 }

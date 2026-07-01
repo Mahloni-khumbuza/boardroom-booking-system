@@ -23,6 +23,8 @@ import {
 
 import { AuthService } from '../../../features/auth/services/auth.service';
 import { NotificationsService } from '../../../features/notifications/services/notifications.service';
+import { getFirebaseMessaging } from '../../firebase/firebase.config';
+import { onMessage } from 'firebase/messaging';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type IconData = any;
@@ -229,7 +231,20 @@ export class ShellComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadUnreadCount();
-    this.pollTimer = setInterval(() => this.loadUnreadCount(), 60_000);
+    this.pollTimer = setInterval(() => this.loadUnreadCount(), 30_000);
+    this.listenForForegroundMessages();
+  }
+
+  private listenForForegroundMessages(): void {
+    try {
+      const messaging = getFirebaseMessaging();
+      if (!messaging) return;
+      onMessage(messaging, () => {
+        this.loadUnreadCount();
+      });
+    } catch {
+      // Firebase not available — badge updates via polling only
+    }
   }
 
   ngOnDestroy(): void {

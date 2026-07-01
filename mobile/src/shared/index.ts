@@ -7,3 +7,4 @@
 export * from './components';
 export * from './utils/validation.utils';
 export * from './utils/format.utils';
+export type { UserProfile } from './types/user.types';
