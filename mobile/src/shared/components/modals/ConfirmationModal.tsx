@@ -1,8 +1,9 @@
 import React from 'react';
 import { Modal, View, Text, StyleSheet } from 'react-native';
-import { colors, spacing, borderRadius, typography, shadows } from '../../../design-system';
+import { spacing, borderRadius, typography, shadows, colors } from '../../../design-system';
 import { PrimaryButton }   from '../buttons/PrimaryButton';
 import { SecondaryButton } from '../buttons/SecondaryButton';
+import { DangerButton }    from '../buttons/DangerButton';
 
 interface ConfirmationModalProps {
   visible:         boolean;
@@ -29,13 +30,7 @@ export function ConfirmationModal({
           <View style={styles.actions}>
             <SecondaryButton label={cancelLabel} onPress={onCancel} style={styles.btn} disabled={isLoading} />
             {isDangerous ? (
-              // DangerButton inline to avoid circular import issues
-              <PrimaryButton
-                label={confirmLabel}
-                onPress={onConfirm}
-                isLoading={isLoading}
-                style={[styles.btn, { backgroundColor: colors.danger.main }]}
-              />
+              <DangerButton label={confirmLabel} onPress={onConfirm} isLoading={isLoading} style={styles.btn} />
             ) : (
               <PrimaryButton label={confirmLabel} onPress={onConfirm} isLoading={isLoading} style={styles.btn} />
             )}

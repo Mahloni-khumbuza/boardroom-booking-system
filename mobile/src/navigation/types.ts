@@ -8,22 +8,27 @@ export type AuthStackParamList = {
   ResetPassword: { token: string };
 };
 
-// Main tab navigator
+// Main tab navigator (header screens removed — they live in MainStack)
 export type MainTabParamList = {
-  Dashboard:     undefined;
-  Boardrooms:    undefined;
-  Bookings:      undefined;
+  Dashboard:  undefined;
+  Boardrooms: undefined;
+  Bookings:   undefined;
+};
+
+// Main stack (wraps tabs + header-accessible screens)
+export type MainStackParamList = {
+  Tabs:          undefined;
   Notifications: undefined;
   Profile:       undefined;
 };
 
 // Screen prop helpers
-export type LoginScreenProps         = NativeStackScreenProps<AuthStackParamList, 'Login'>;
+export type LoginScreenProps          = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 export type ForgotPasswordScreenProps = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
 export type ResetPasswordScreenProps  = NativeStackScreenProps<AuthStackParamList, 'ResetPassword'>;
 
-export type DashboardScreenProps     = BottomTabScreenProps<MainTabParamList, 'Dashboard'>;
-export type BoardroomsScreenProps    = BottomTabScreenProps<MainTabParamList, 'Boardrooms'>;
-export type BookingsScreenProps      = BottomTabScreenProps<MainTabParamList, 'Bookings'>;
-export type NotificationsScreenProps = BottomTabScreenProps<MainTabParamList, 'Notifications'>;
-export type ProfileScreenProps       = BottomTabScreenProps<MainTabParamList, 'Profile'>;
+export type DashboardScreenProps      = BottomTabScreenProps<MainTabParamList, 'Dashboard'>;
+export type BoardroomsScreenProps     = BottomTabScreenProps<MainTabParamList, 'Boardrooms'>;
+export type BookingsScreenProps       = BottomTabScreenProps<MainTabParamList, 'Bookings'>;
+export type NotificationsScreenProps  = NativeStackScreenProps<MainStackParamList, 'Notifications'>;
+export type ProfileScreenProps        = NativeStackScreenProps<MainStackParamList, 'Profile'>;

@@ -1,16 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import type { RootState } from '../index';
-
-interface UserProfile {
-  id:          string;
-  email:       string;
-  firstName:   string;
-  lastName:    string;
-  role:        string;
-  phoneNumber: string | null;
-  department:  string | null;
-  jobTitle:    string | null;
-}
+import type { UserProfile } from '../../shared/types/user.types';
 
 interface UserState {
   profile: UserProfile | null;

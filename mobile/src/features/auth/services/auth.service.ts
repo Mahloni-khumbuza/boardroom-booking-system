@@ -1,18 +1,9 @@
 import type { AppDispatch } from '../../../store';
 import { setCredentials, clearCredentials } from '../../../store/slices/auth.slice';
 import { setUserProfile, clearUserProfile } from '../../../store/slices/user.slice';
+import type { UserProfile } from '../../../shared/types/user.types';
 import { authStorageService } from './auth-storage.service';
-
-interface UserProfile {
-  id:          string;
-  email:       string;
-  firstName:   string;
-  lastName:    string;
-  role:        string;
-  phoneNumber: string | null;
-  department:  string | null;
-  jobTitle:    string | null;
-}
+import { pushTokenRegistrationService } from '../../../shared/services/push-token-registration.service';
 
 export const authService = {
   async persistLogin(dispatch: AppDispatch, token: string, user: UserProfile): Promise<void> {
@@ -20,6 +11,7 @@ export const authService = {
     await authStorageService.saveUserProfile(user);
     dispatch(setCredentials({ accessToken: token }));
     dispatch(setUserProfile(user));
+    void pushTokenRegistrationService.registerOnLogin();
   },
 
   async restoreSession(dispatch: AppDispatch): Promise<boolean> {
@@ -28,10 +20,12 @@ export const authService = {
     if (!token || !profile) return false;
     dispatch(setCredentials({ accessToken: token }));
     dispatch(setUserProfile(profile));
+    void pushTokenRegistrationService.registerOnLogin();
     return true;
   },
 
   async logout(dispatch: AppDispatch): Promise<void> {
+    await pushTokenRegistrationService.deregisterOnLogout();
     await authStorageService.clearAll();
     dispatch(clearCredentials());
     dispatch(clearUserProfile());

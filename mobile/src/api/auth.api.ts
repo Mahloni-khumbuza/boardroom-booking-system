@@ -1,4 +1,5 @@
 import { apiSlice } from './api.slice';
+import type { UserProfile } from '../shared/types/user.types';
 
 interface LoginRequest {
   email:    string;
@@ -7,16 +8,7 @@ interface LoginRequest {
 
 interface LoginResponse {
   accessToken: string;
-  user: {
-    id:          string;
-    email:       string;
-    firstName:   string;
-    lastName:    string;
-    role:        string;
-    phoneNumber: string | null;
-    department:  string | null;
-    jobTitle:    string | null;
-  };
+  user:        UserProfile;
 }
 
 interface ForgotPasswordRequest {

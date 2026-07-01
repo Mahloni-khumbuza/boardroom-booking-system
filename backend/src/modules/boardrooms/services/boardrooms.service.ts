@@ -4,9 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  Inject,
 } from '@nestjs/common';
-import { Mapper } from '@automapper/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Amenity } from '../../amenities/entities/amenity.entity';
@@ -19,6 +17,7 @@ import { BoardroomResponseDto } from '../dto/boardroom-response.dto';
 import { CreateBoardroomDto } from '../dto/create-boardroom.dto';
 import { UpdateBoardroomDto } from '../dto/update-boardroom.dto';
 import { AvailabilityQueryDto, AvailabilityResponseDto, TimeSlot } from '../dto/availability-query.dto';
+import { AmenityResponseDto } from '../../amenities/dto/amenity-response.dto';
 
 @Injectable()
 export class BoardroomsService {
@@ -34,7 +33,6 @@ export class BoardroomsService {
     @InjectRepository(BoardroomBlock)
     private readonly blocksRepo: Repository<BoardroomBlock>,
     private readonly auditLogs: AuditLogsService,
-    @Inject('automapper:nestjs:default') private readonly mapper: any,
   ) {}
 
   async findAll(query: BoardroomQueryDto = {}): Promise<BoardroomResponseDto[]> {
@@ -65,7 +63,7 @@ export class BoardroomsService {
         });
       }
 
-      return this.mapper.mapArray(await qb.getMany(), Boardroom, BoardroomResponseDto);
+      return (await qb.getMany()).map((e) => this.toDto(e));
     } catch (error) {
       this.logger.error('Failed to fetch boardrooms', error);
       throw error;
@@ -74,7 +72,7 @@ export class BoardroomsService {
 
   async findOne(id: string): Promise<BoardroomResponseDto> {
     try {
-      return this.mapper.map(await this.findOneEntity(id), Boardroom, BoardroomResponseDto);
+      return this.toDto(await this.findOneEntity(id));
     } catch (error) {
       this.logger.error(`Failed to fetch boardroom ${id}`, error);
       throw error;
@@ -118,7 +116,7 @@ export class BoardroomsService {
         actorId: actorId ?? null,
         after: { name: saved.name, capacity: saved.capacity, location: saved.location },
       });
-      return this.mapper.map(saved, Boardroom, BoardroomResponseDto);
+      return this.toDto(saved);
     } catch (error) {
       this.logger.error('Failed to create boardroom', error);
       throw error;
@@ -165,7 +163,7 @@ export class BoardroomsService {
         before,
         after: { name: saved.name, capacity: saved.capacity, isActive: saved.isActive },
       });
-      return this.mapper.map(saved, Boardroom, BoardroomResponseDto);
+      return this.toDto(saved);
     } catch (error) {
       this.logger.error(`Failed to update boardroom ${id}`, error);
       throw error;
@@ -180,7 +178,7 @@ export class BoardroomsService {
         where: { boardroomId: room.id, status: BookingStatus.APPROVED },
       });
       if (activeBookings > 0) {
-        throw new BadRequestException(`Cannot delete boardroom "${room.name}" Ã¢â‚¬â€ it has ${activeBookings} active booking(s)`);
+        throw new BadRequestException(`Cannot delete boardroom "${room.name}" — it has ${activeBookings} active booking(s)`);
       }
 
       await this.repo.delete(room.id);
@@ -261,6 +259,42 @@ export class BoardroomsService {
       this.logger.error(`Failed to get availability for boardroom ${id}`, error);
       throw error;
     }
+  }
+
+  private toDto(entity: Boardroom): BoardroomResponseDto {
+    const dto = new BoardroomResponseDto();
+    dto.id = entity.id;
+    dto.name = entity.name;
+    dto.code = entity.code;
+    dto.description = entity.description;
+    dto.capacity = entity.capacity;
+    dto.location = entity.location;
+    dto.floor = entity.floor;
+    dto.building = entity.building;
+    dto.imageUrl = entity.imageUrl;
+    dto.isActive = entity.isActive;
+    dto.isBookable = entity.isBookable;
+    dto.requiresApproval = entity.requiresApproval;
+    dto.openingTime = entity.openingTime;
+    dto.closingTime = entity.closingTime;
+    dto.minimumBookingMinutes = entity.minimumBookingMinutes;
+    dto.maximumBookingMinutes = entity.maximumBookingMinutes;
+    dto.bufferTimeBeforeMinutes = entity.bufferTimeBeforeMinutes;
+    dto.bufferTimeAfterMinutes = entity.bufferTimeAfterMinutes;
+    dto.equipmentStatus = entity.equipmentStatus;
+    dto.amenities = (entity.amenities ?? []).map((amenity) => {
+      const amenityDto = new AmenityResponseDto();
+      amenityDto.id = amenity.id;
+      amenityDto.name = amenity.name;
+      amenityDto.description = amenity.description;
+      amenityDto.icon = amenity.icon;
+      amenityDto.createdAt = amenity.createdAt;
+      amenityDto.updatedAt = amenity.updatedAt;
+      return amenityDto;
+    });
+    dto.createdAt = entity.createdAt;
+    dto.updatedAt = entity.updatedAt;
+    return dto;
   }
 
   private async findOneEntity(id: string): Promise<Boardroom> {

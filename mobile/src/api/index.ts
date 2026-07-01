@@ -13,3 +13,16 @@ export {
   useResetPasswordMutation,
   useGetProfileQuery,
 } from './auth.api';
+
+// Notification + push token hooks (injected via notifications.api.ts)
+export {
+  useListNotificationsQuery,
+  useGetUnreadCountQuery,
+  useMarkReadMutation,
+  useMarkAllReadMutation,
+  useDeleteNotificationMutation,
+  useRegisterPushTokenMutation,
+  useRemovePushTokenMutation,
+  useRemoveAllPushTokensMutation,
+} from './notifications.api';
+export type { Notification, NotificationType, RegisterTokenRequest } from './notifications.api';

@@ -1,13 +1,15 @@
 import React from 'react';
-import { Text } from 'react-native';
-import { ScreenContainer } from '../../../shared/components/layout/ScreenContainer';
-import { PageHeader }      from '../../../shared/components/layout/PageHeader';
+import { ScreenContainer, PageHeader, EmptyState } from '../../../shared';
 
 export function DashboardScreen() {
   return (
     <ScreenContainer>
       <PageHeader title="Dashboard" subtitle="Overview of your bookings" />
-      <Text>Dashboard content coming soon.</Text>
+      <EmptyState
+        icon="home-outline"
+        title="Dashboard coming soon"
+        message="Booking statistics and upcoming meetings will appear here."
+      />
     </ScreenContainer>
   );
 }

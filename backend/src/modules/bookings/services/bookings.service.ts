@@ -4,9 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  Inject,
 } from '@nestjs/common';
-import { Mapper } from '@automapper/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuditLogsService } from '../../audit-logs/services/audit-logs.service';
@@ -16,7 +14,8 @@ import { NotificationsService } from '../../notifications/services/notifications
 import { NotificationType } from '../../notifications/entities/notification.entity';
 import { User } from '../../users/entities/user.entity';
 import { Booking, BookingStatus, MeetingType } from '../entities/booking.entity';
-import { BookingResponseDto, CalendarEventResponseDto } from '../dto/booking-response.dto';
+import { BookingResponseDto, BookingBoardroomDto, BookingActorDto, CalendarEventResponseDto } from '../dto/booking-response.dto';
+import { AmenityResponseDto } from '../../amenities/dto/amenity-response.dto';
 import { CreateBookingDto } from '../dto/create-booking.dto';
 import { UpdateBookingDto } from '../dto/update-booking.dto';
 import { MailQueueService } from '../../mail/services/mail-queue.service';
@@ -52,8 +51,68 @@ export class BookingsService {
     private readonly auditLogs: AuditLogsService,
     private readonly settings: SettingsCacheService,
     private readonly mail: MailQueueService,
-    @Inject('automapper:nestjs:default') private readonly mapper: any,
   ) {}
+
+  private toBoardroomDto(boardroom: Boardroom | null | undefined): BookingBoardroomDto | null {
+    if (!boardroom) return null;
+    return {
+      id: boardroom.id,
+      name: boardroom.name,
+      location: boardroom.location ?? null,
+      capacity: boardroom.capacity,
+    };
+  }
+
+  private toActorDto(user: User | null | undefined): BookingActorDto | null {
+    if (!user) return null;
+    return {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+    };
+  }
+
+  private toAmenityDto(amenity: { id: string; name: string; description: string | null; icon: string | null; createdAt: Date; updatedAt: Date }): AmenityResponseDto {
+    return {
+      id: amenity.id,
+      name: amenity.name,
+      description: amenity.description ?? null,
+      icon: amenity.icon ?? null,
+      createdAt: amenity.createdAt,
+      updatedAt: amenity.updatedAt,
+    };
+  }
+
+  private toDto(entity: Booking): BookingResponseDto {
+    return {
+      id: entity.id,
+      title: entity.title,
+      description: entity.description ?? null,
+      startDateTime: entity.startDateTime,
+      endDateTime: entity.endDateTime,
+      attendeeCount: entity.attendeeCount,
+      status: entity.status,
+      meetingType: entity.meetingType,
+      requiresCatering: entity.requiresCatering,
+      cateringNotes: entity.cateringNotes ?? null,
+      requiresSetup: entity.requiresSetup,
+      setupNotes: entity.setupNotes ?? null,
+      cancellationReason: entity.cancellationReason ?? null,
+      rejectionReason: entity.rejectionReason ?? null,
+      boardroom: this.toBoardroomDto(entity.boardroom),
+      bookedByUserId: entity.bookedByUserId ?? null,
+      bookedByUser: this.toActorDto(entity.bookedByUser),
+      approvedByUser: this.toActorDto(entity.approvedByUser),
+      approvedAt: entity.approvedAt ?? null,
+      cancelledAt: entity.cancelledAt ?? null,
+      rejectedByUser: this.toActorDto(entity.rejectedByUser),
+      rejectedAt: entity.rejectedAt ?? null,
+      requestedAmenities: (entity.requestedAmenities ?? []).map((a) => this.toAmenityDto(a)),
+      createdAt: entity.createdAt,
+      updatedAt: entity.updatedAt,
+    };
+  }
 
   async create(dto: CreateBookingDto, user: User): Promise<BookingResponseDto> {
     const room = await this.rooms.findOne({ where: { id: dto.boardroomId } });
@@ -103,7 +162,7 @@ export class BookingsService {
     );
 
     if (room.requiresApproval) {
-      // Ã‚Â§12: Booking requires approval Ã¢â€ â€™ Admin + FM: approval request with room and time details
+      // §12: Booking requires approval → Admin + FM: approval request with room and time details
       await this.notifyAndEmailOperationalUsers(
         'Booking requires approval',
         `${user.firstName} ${user.lastName} requested ${room.name} on ${saved.startDateTime.toLocaleDateString('en-ZA')}.`,
@@ -121,7 +180,7 @@ export class BookingsService {
       );
     }
 
-    // Ã‚Â§12: Setup or catering required Ã¢â€ â€™ Facilities Manager only: operational task details
+    // §12: Setup or catering required → Facilities Manager only: operational task details
     await this.notifyFacilitiesRequests(saved);
     await this.auditLogs.record({
       action: 'BOOKING_CREATED',
@@ -130,7 +189,7 @@ export class BookingsService {
       actorId: user.id,
       after: this.safeBooking(saved),
     });
-    return this.mapper.map(saved, Booking, BookingResponseDto);
+    return this.toDto(saved);
   }
 
   private async validateBookingBasics(
@@ -233,11 +292,11 @@ export class BookingsService {
       relations: { boardroom: true, bookedByUser: true, requestedAmenities: true },
       order: { startDateTime: 'DESC' },
     });
-    return this.mapper.mapArray(bookings, Booking, BookingResponseDto);
+    return bookings.map((e) => this.toDto(e));
   }
 
   async findAll(query: Record<string, string> = {}): Promise<BookingResponseDto[]> {
-    return this.mapper.mapArray(await this.findAllEntities(query), Booking, BookingResponseDto);
+    return (await this.findAllEntities(query)).map((e) => this.toDto(e));
   }
 
   private async findAllEntities(query: Record<string, string> = {}): Promise<Booking[]> {
@@ -313,7 +372,7 @@ export class BookingsService {
   }
 
   async findOne(id: string): Promise<BookingResponseDto> {
-    return this.mapper.map(await this.findOneEntity(id), Booking, BookingResponseDto);
+    return this.toDto(await this.findOneEntity(id));
   }
 
   private async findOneEntity(id: string): Promise<Booking> {
@@ -372,7 +431,7 @@ export class BookingsService {
     if (room.requiresApproval) booking.status = BookingStatus.PENDING_APPROVAL;
 
     const saved = await this.bookings.save(booking);
-    // Ã‚Â§12: Booking updated Ã¢â€ â€™ Booker: change summary
+    // §12: Booking updated → Booker: change summary
     if (saved.bookedByUser) {
       await this.notifications.notify({
         recipientId: saved.bookedByUser.id,
@@ -382,7 +441,7 @@ export class BookingsService {
       });
       this.sendBookingEmail(saved.bookedByUser, `Booking updated: ${saved.title}`, bookingUpdatedHtml(this.buildEmailCtx(saved)));
     }
-    // Ã‚Â§12: Booking updated Ã¢â€ â€™ relevant admins: change summary
+    // §12: Booking updated → relevant admins: change summary
     const changedBy = `${user.firstName} ${user.lastName}`;
     await this.notifyAndEmailOperationalUsers(
       'Booking updated',
@@ -398,7 +457,7 @@ export class BookingsService {
       }),
       `Booking updated: ${saved.title}`,
     );
-    // Ã‚Â§12: Setup or catering required Ã¢â€ â€™ FM: operational task details
+    // §12: Setup or catering required → FM: operational task details
     await this.notifyFacilitiesRequests(saved);
     await this.auditLogs.record({
       action: 'BOOKING_UPDATED',
@@ -408,7 +467,7 @@ export class BookingsService {
       before,
       after: this.safeBooking(saved),
     });
-    return this.mapper.map(saved, Booking, BookingResponseDto);
+    return this.toDto(saved);
   }
 
   async approve(id: string, user: User): Promise<BookingResponseDto> {
@@ -432,7 +491,7 @@ export class BookingsService {
     await this.bookings.save(booking);
     const saved = await this.findOneEntity(booking.id);
     if (saved.bookedByUser) {
-      // Ã‚Â§12: Booking approved Ã¢â€ â€™ Booker: confirmation that booking is approved
+      // §12: Booking approved → Booker: confirmation that booking is approved
       await this.notifications.notify({
         recipientId: saved.bookedByUser.id,
         title: 'Booking approved',
@@ -456,7 +515,7 @@ export class BookingsService {
       before,
       after: this.safeBooking(saved),
     });
-    return this.mapper.map(saved, Booking, BookingResponseDto);
+    return this.toDto(saved);
   }
 
   async reject(id: string, user: User, reason: string): Promise<BookingResponseDto> {
@@ -481,7 +540,7 @@ export class BookingsService {
     await this.bookings.save(booking);
     const saved = await this.findOneEntity(booking.id);
     if (saved.bookedByUser) {
-      // Ã‚Â§12: Booking rejected Ã¢â€ â€™ Booker: rejection notice with reason
+      // §12: Booking rejected → Booker: rejection notice with reason
       await this.notifications.notify({
         recipientId: saved.bookedByUser.id,
         title: 'Booking rejected',
@@ -505,7 +564,7 @@ export class BookingsService {
       before,
       after: this.safeBooking(saved),
     });
-    return this.mapper.map(saved, Booking, BookingResponseDto);
+    return this.toDto(saved);
   }
 
   async cancel(id: string, user: User, reason?: string): Promise<BookingResponseDto> {
@@ -525,7 +584,7 @@ export class BookingsService {
     const cancelledByName = `${user.firstName} ${user.lastName}`;
     const cancelReason = saved.cancellationReason ?? 'No reason provided';
 
-    // Ã‚Â§12: Booking cancelled Ã¢â€ â€™ Booker: cancellation notice with reason
+    // §12: Booking cancelled → Booker: cancellation notice with reason
     if (saved.bookedByUser) {
       await this.notifications.notify({
         recipientId: saved.bookedByUser.id,
@@ -542,7 +601,7 @@ export class BookingsService {
         type: NotificationType.BookingCancelled,
       });
     }
-    // Ã‚Â§12: Booking cancelled Ã¢â€ â€™ relevant admins: cancellation notice with reason
+    // §12: Booking cancelled → relevant admins: cancellation notice with reason
     await this.notifyAndEmailOperationalUsers(
       'Booking cancelled',
       `"${saved.title}" in ${saved.boardroom?.name ?? 'a room'} was cancelled by ${cancelledByName}. Reason: ${cancelReason}`,
@@ -562,7 +621,7 @@ export class BookingsService {
       before,
       after: this.safeBooking(saved),
     });
-    return this.mapper.map(saved, Booking, BookingResponseDto);
+    return this.toDto(saved);
   }
 
   async complete(id: string, user?: User): Promise<BookingResponseDto> {
@@ -581,7 +640,7 @@ export class BookingsService {
       before,
       after: this.safeBooking(saved),
     });
-    return this.mapper.map(saved, Booking, BookingResponseDto);
+    return this.toDto(saved);
   }
 
   async noShow(id: string, user?: User): Promise<BookingResponseDto> {
@@ -600,7 +659,7 @@ export class BookingsService {
       before,
       after: this.safeBooking(saved),
     });
-    return this.mapper.map(saved, Booking, BookingResponseDto);
+    return this.toDto(saved);
   }
 
   async remove(id: string, user: User): Promise<void> {
@@ -693,7 +752,7 @@ export class BookingsService {
     };
   }
 
-  // Ã‚Â§12: Generic: in-app + email to Admin, SuperAdmin, FacilitiesManager
+  // §12: Generic: in-app + email to Admin, SuperAdmin, FacilitiesManager
   private async notifyAndEmailOperationalUsers(
     title: string,
     message: string,
@@ -714,7 +773,7 @@ export class BookingsService {
     }
   }
 
-  // Ã‚Â§12: Setup or catering required Ã¢â€ â€™ Facilities Manager only (not Admin/SuperAdmin)
+  // §12: Setup or catering required → Facilities Manager only (not Admin/SuperAdmin)
   private async notifyFacilitiesRequests(booking: Booking): Promise<void> {
     if (!booking.requiresCatering && !booking.requiresSetup) return;
 

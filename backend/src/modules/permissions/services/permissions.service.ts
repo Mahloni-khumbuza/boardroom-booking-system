@@ -3,9 +3,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  Inject,
 } from '@nestjs/common';
-import { Mapper } from '@automapper/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Permission } from '../entities/permission.entity';
@@ -20,13 +18,22 @@ export class PermissionsService {
   constructor(
     @InjectRepository(Permission)
     private readonly permissionsRepository: Repository<Permission>,
-    @Inject('automapper:nestjs:default') private readonly mapper: any,
   ) {}
+
+  private toDto(entity: Permission): PermissionResponseDto {
+    const dto = new PermissionResponseDto();
+    dto.id = entity.id;
+    dto.name = entity.name;
+    dto.description = entity.description;
+    dto.createdAt = entity.createdAt;
+    dto.updatedAt = entity.updatedAt;
+    return dto;
+  }
 
   async findAll(): Promise<PermissionResponseDto[]> {
     try {
       const permissions = await this.permissionsRepository.find({ order: { name: 'ASC' } });
-      return this.mapper.mapArray(permissions, Permission, PermissionResponseDto);
+      return permissions.map(e => this.toDto(e));
     } catch (error) {
       this.logger.error('Failed to fetch permissions', error);
       throw error;
@@ -37,7 +44,7 @@ export class PermissionsService {
     try {
       const permission = await this.permissionsRepository.findOne({ where: { id } });
       if (!permission) throw new NotFoundException(`Permission ${id} not found`);
-      return this.mapper.map(permission, Permission, PermissionResponseDto);
+      return this.toDto(permission);
     } catch (error) {
       this.logger.error(`Failed to fetch permission ${id}`, error);
       throw error;
@@ -52,7 +59,7 @@ export class PermissionsService {
         name: dto.name,
         description: dto.description ?? null,
       });
-      return this.mapper.map(await this.permissionsRepository.save(permission), Permission, PermissionResponseDto);
+      return this.toDto(await this.permissionsRepository.save(permission));
     } catch (error) {
       this.logger.error('Failed to create permission', error);
       throw error;
@@ -69,7 +76,7 @@ export class PermissionsService {
         permission.name = dto.name;
       }
       if (dto.description !== undefined) permission.description = dto.description;
-      return this.mapper.map(await this.permissionsRepository.save(permission), Permission, PermissionResponseDto);
+      return this.toDto(await this.permissionsRepository.save(permission));
     } catch (error) {
       this.logger.error(`Failed to update permission ${id}`, error);
       throw error;

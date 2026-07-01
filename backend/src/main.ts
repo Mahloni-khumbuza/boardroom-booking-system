@@ -13,6 +13,8 @@ async function bootstrap() {
   const allowedOrigins = corsOrigin.split(',').map((o) => o.trim());
   const localhostPattern = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 
+  app.setGlobalPrefix('api');
+
   app.enableCors({
     origin: (origin, callback) => {
       if (!origin) {

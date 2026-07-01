@@ -1,6 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { AutomapperProfile } from '@automapper/nestjs';
-import type { Mapper, MappingProfile } from '@automapper/core';
+import { Mapper, MappingProfile } from '@automapper/core';
 import { SystemSetting } from '../entities/system-setting.entity';
 import { SystemSettingResponseDto } from '../dto/system-setting-response.dto';
 

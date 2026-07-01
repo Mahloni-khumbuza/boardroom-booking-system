@@ -15,6 +15,12 @@ export const requiredStringSchema = (fieldName: string) =>
 
 export const optionalStringSchema = z.string().optional();
 
+export const lengthStringSchema = (fieldName: string, min: number, max: number) =>
+  z
+    .string({ error: `${fieldName} is required.` })
+    .min(min, `${fieldName} must be at least ${min} characters.`)
+    .max(max, `${fieldName} must not exceed ${max} characters.`);
+
 export const loginSchema = z.object({
   email:    emailSchema,
   password: passwordSchema,

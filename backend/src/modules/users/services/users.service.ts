@@ -4,9 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  Inject,
 } from '@nestjs/common';
-import { Mapper } from '@automapper/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Role } from '../../roles/entities/role.entity';
@@ -14,6 +12,8 @@ import { User } from '../entities/user.entity';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { UserResponseDto } from '../dto/user-response.dto';
+import { RoleResponseDto } from '../../roles/dto/role-response.dto';
+import { PermissionResponseDto } from '../../permissions/dto/permission-response.dto';
 
 @Injectable()
 export class UsersService {
@@ -24,7 +24,6 @@ export class UsersService {
     private readonly usersRepository: Repository<User>,
     @InjectRepository(Role)
     private readonly rolesRepository: Repository<Role>,
-    @Inject('automapper:nestjs:default') private readonly mapper: any,
   ) {}
 
   async findAll(): Promise<UserResponseDto[]> {
@@ -33,7 +32,7 @@ export class UsersService {
         order: { lastName: 'ASC', firstName: 'ASC' },
         relations: { role: { permissions: true } },
       });
-      return this.mapper.mapArray(users, User, UserResponseDto);
+      return users.map(e => this.toDto(e));
     } catch (error) {
       this.logger.error('Failed to fetch users', error);
       throw error;
@@ -42,7 +41,7 @@ export class UsersService {
 
   async findOne(id: string): Promise<UserResponseDto> {
     try {
-      return this.mapper.map(await this.findOneEntity(id), User, UserResponseDto);
+      return this.toDto(await this.findOneEntity(id));
     } catch (error) {
       this.logger.error(`Failed to fetch user ${id}`, error);
       throw error;
@@ -84,7 +83,7 @@ export class UsersService {
         role,
         roleId: role?.id ?? null,
       });
-      return this.mapper.map(await this.usersRepository.save(user), User, UserResponseDto);
+      return this.toDto(await this.usersRepository.save(user));
     } catch (error) {
       this.logger.error('Failed to create user', error);
       throw error;
@@ -110,7 +109,7 @@ export class UsersService {
         user.role = role;
         user.roleId = role?.id ?? null;
       }
-      return this.mapper.map(await this.usersRepository.save(user), User, UserResponseDto);
+      return this.toDto(await this.usersRepository.save(user));
     } catch (error) {
       this.logger.error(`Failed to update user ${id}`, error);
       throw error;
@@ -154,5 +153,40 @@ export class UsersService {
     const role = await this.rolesRepository.findOne({ where: { id: roleId }, relations: { permissions: true } });
     if (!role) throw new BadRequestException(`Role ${roleId} not found`);
     return role;
+  }
+
+  private toDto(user: User): UserResponseDto {
+    const dto = new UserResponseDto();
+    dto.id = user.id;
+    dto.email = user.email;
+    dto.firstName = user.firstName;
+    dto.lastName = user.lastName;
+    dto.phoneNumber = user.phoneNumber;
+    dto.department = user.department;
+    dto.jobTitle = user.jobTitle;
+    dto.isActive = user.isActive;
+    dto.role = user.role ? this.toRoleDto(user.role) : null;
+    dto.createdAt = user.createdAt;
+    dto.updatedAt = user.updatedAt;
+    return dto;
+  }
+
+  private toRoleDto(role: Role): RoleResponseDto {
+    const dto = new RoleResponseDto();
+    dto.id = role.id;
+    dto.name = role.name;
+    dto.description = role.description ?? null;
+    dto.permissions = (role.permissions ?? []).map((p) => {
+      const pd = new PermissionResponseDto();
+      pd.id = p.id;
+      pd.name = p.name;
+      pd.description = p.description ?? null;
+      pd.createdAt = p.createdAt;
+      pd.updatedAt = p.updatedAt;
+      return pd;
+    });
+    dto.createdAt = role.createdAt;
+    dto.updatedAt = role.updatedAt;
+    return dto;
   }
 }

@@ -4,15 +4,14 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  Inject,
 } from '@nestjs/common';
-import { Mapper } from '@automapper/core';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Permission } from '../../permissions/entities/permission.entity';
 import { User } from '../../users/entities/user.entity';
 import { Role } from '../entities/role.entity';
 import { RoleResponseDto } from '../dto/role-response.dto';
+import { PermissionResponseDto } from '../../permissions/dto/permission-response.dto';
 import { CreateRoleDto } from '../dto/create-role.dto';
 import { UpdateRoleDto } from '../dto/update-role.dto';
 
@@ -27,13 +26,12 @@ export class RolesService {
     private readonly permissionsRepository: Repository<Permission>,
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
-    @Inject('automapper:nestjs:default') private readonly mapper: any,
   ) {}
 
   async findAll(): Promise<RoleResponseDto[]> {
     try {
       const roles = await this.rolesRepository.find({ order: { name: 'ASC' }, relations: { permissions: true } });
-      return this.mapper.mapArray(roles, Role, RoleResponseDto);
+      return roles.map(e => this.toDto(e));
     } catch (error) {
       this.logger.error('Failed to fetch roles', error);
       throw error;
@@ -44,7 +42,7 @@ export class RolesService {
     try {
       const role = await this.rolesRepository.findOne({ where: { id }, relations: { permissions: true } });
       if (!role) throw new NotFoundException(`Role ${id} not found`);
-      return this.mapper.map(role, Role, RoleResponseDto);
+      return this.toDto(role);
     } catch (error) {
       this.logger.error(`Failed to fetch role ${id}`, error);
       throw error;
@@ -57,7 +55,7 @@ export class RolesService {
       if (existing) throw new ConflictException(`Role "${dto.name}" already exists`);
       const permissions = await this.resolvePermissions(dto.permissionIds);
       const role = this.rolesRepository.create({ name: dto.name, description: dto.description ?? null, permissions });
-      return this.mapper.map(await this.rolesRepository.save(role), Role, RoleResponseDto);
+      return this.toDto(await this.rolesRepository.save(role));
     } catch (error) {
       this.logger.error('Failed to create role', error);
       throw error;
@@ -75,7 +73,7 @@ export class RolesService {
       }
       if (dto.description !== undefined) role.description = dto.description;
       if (dto.permissionIds !== undefined) role.permissions = await this.resolvePermissions(dto.permissionIds);
-      return this.mapper.map(await this.rolesRepository.save(role), Role, RoleResponseDto);
+      return this.toDto(await this.rolesRepository.save(role));
     } catch (error) {
       this.logger.error(`Failed to update role ${id}`, error);
       throw error;
@@ -87,7 +85,7 @@ export class RolesService {
       const role = await this.findOne(id);
       const inUse = await this.usersRepository.count({ where: { roleId: role.id } });
       if (inUse > 0) {
-        throw new ConflictException(`Cannot delete role "${role.name}" Ã¢â‚¬â€ ${inUse} user(s) still assigned`);
+        throw new ConflictException(`Cannot delete role "${role.name}" — ${inUse} user(s) still assigned`);
       }
       await this.rolesRepository.delete(role.id);
     } catch (error) {
@@ -105,5 +103,24 @@ export class RolesService {
       throw new BadRequestException(`Unknown permission ids: ${missing.join(', ')}`);
     }
     return found;
+  }
+
+  private toDto(entity: Role): RoleResponseDto {
+    const dto = new RoleResponseDto();
+    dto.id = entity.id;
+    dto.name = entity.name;
+    dto.description = entity.description;
+    dto.permissions = (entity.permissions ?? []).map((p) => {
+      const permDto = new PermissionResponseDto();
+      permDto.id = p.id;
+      permDto.name = p.name;
+      permDto.description = p.description;
+      permDto.createdAt = p.createdAt;
+      permDto.updatedAt = p.updatedAt;
+      return permDto;
+    });
+    dto.createdAt = entity.createdAt;
+    dto.updatedAt = entity.updatedAt;
+    return dto;
   }
 }

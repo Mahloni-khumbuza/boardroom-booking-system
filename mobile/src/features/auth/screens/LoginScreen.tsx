@@ -5,13 +5,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { LoginScreenProps } from '../../../navigation/types';
 import { loginSchema, type LoginFormValues } from '../../../shared/utils/validation.utils';
 import { useAppDispatch } from '../../../store/hooks';
-import { useLoginMutation } from '../../../api/auth.api';
+import { useLoginMutation, extractApiError } from '../../../api';
 import { authService } from '../services/auth.service';
-import { extractApiError } from '../../../api/error.utils';
-import { ScreenContainer } from '../../../shared/components/layout/ScreenContainer';
-import { TextInput }     from '../../../shared/components/inputs/TextInput';
-import { PasswordInput } from '../../../shared/components/inputs/PasswordInput';
-import { PrimaryButton } from '../../../shared/components/buttons/PrimaryButton';
+import {
+  ScreenContainer,
+  TextInput,
+  PasswordInput,
+  PrimaryButton,
+} from '../../../shared';
 import { colors, spacing, typography } from '../../../design-system';
 
 export function LoginScreen({ navigation }: LoginScreenProps) {

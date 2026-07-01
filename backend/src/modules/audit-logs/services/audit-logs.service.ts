@@ -1,10 +1,9 @@
-import { Injectable, Inject, Logger, NotFoundException } from '@nestjs/common';
-import { Mapper } from '@automapper/core';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AuditLog } from '../entities/audit-log.entity';
 import { AuditLogQueryDto } from '../dto/audit-log-query.dto';
-import { AuditLogResponseDto, PaginatedAuditLogResponseDto } from '../dto/audit-log-response.dto';
+import { AuditLogActorDto, AuditLogResponseDto, PaginatedAuditLogResponseDto } from '../dto/audit-log-response.dto';
 
 export interface RecordInput {
   action: string;
@@ -23,8 +22,30 @@ export class AuditLogsService {
   constructor(
     @InjectRepository(AuditLog)
     private readonly repo: Repository<AuditLog>,
-    @Inject('automapper:nestjs:default') private readonly mapper: any,
   ) {}
+
+  private toDto(entity: AuditLog): AuditLogResponseDto {
+    const dto = new AuditLogResponseDto();
+    dto.id = entity.id;
+    dto.action = entity.action;
+    dto.entity = entity.entity;
+    dto.entityId = entity.entityId;
+    dto.metadata = entity.metadata;
+    dto.createdAt = entity.createdAt;
+
+    if (entity.actor) {
+      const actorDto = new AuditLogActorDto();
+      actorDto.id = entity.actor.id;
+      actorDto.email = entity.actor.email;
+      actorDto.firstName = entity.actor.firstName;
+      actorDto.lastName = entity.actor.lastName;
+      dto.actor = actorDto;
+    } else {
+      dto.actor = null;
+    }
+
+    return dto;
+  }
 
   async record(input: RecordInput): Promise<void> {
     try {
@@ -66,7 +87,7 @@ export class AuditLogsService {
     const [items, total] = await qb.getManyAndCount();
 
     return {
-      items: this.mapper.mapArray(items, AuditLog, AuditLogResponseDto),
+      items: items.map(e => this.toDto(e)),
       total,
       limit,
       offset,
@@ -76,6 +97,6 @@ export class AuditLogsService {
   async findOne(id: string): Promise<AuditLogResponseDto> {
     const log = await this.repo.findOne({ where: { id }, relations: { actor: true } });
     if (!log) throw new NotFoundException(`Audit log ${id} not found`);
-    return this.mapper.map(log, AuditLog, AuditLogResponseDto);
+    return this.toDto(log);
   }
 }

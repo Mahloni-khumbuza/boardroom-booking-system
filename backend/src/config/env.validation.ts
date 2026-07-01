@@ -99,6 +99,16 @@ export class EnvironmentVariables {
   @IsOptional()
   REDIS_PASSWORD?: string;
 
+  // Expo push notifications (optional — push delivery degrades gracefully when not configured)
+  @IsString()
+  @IsOptional()
+  EXPO_ACCESS_TOKEN?: string;
+
+  // Firebase Admin SDK service account JSON (optional — FCM/web push disabled when not set)
+  @IsString()
+  @IsOptional()
+  FIREBASE_SERVICE_ACCOUNT_JSON?: string;
+
   // Mail (all optional — system degrades gracefully when not configured)
   @IsString()
   @IsOptional()
